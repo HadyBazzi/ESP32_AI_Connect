@@ -47,10 +47,10 @@ ESP32_AI_Connect is an Arduino library that enables ESP32 microcontrollers to in
 
 | Platform          | Identifier           | Example Models                  | Tool Calls Support | Streaming Support |
 |-------------------|----------------------|---------------------------------|-------------------|-------------------|
-| OpenAI            | `"openai"`           | gpt-3.5, gpt-4, etc.           | Yes               | Yes               |
-| Google Gemini     | `"gemini"`           | gemini-2.0-flash, gemini-2.5, etc.                | Yes                | Yes               |
+| OpenAI            | `"openai"`           | gpt-4.1, gpt-4o-mini, etc.           | Yes               | Yes               |
+| Google Gemini     | `"gemini"`           | gemini-2.5-flash, gemini-2.5-pro, etc.                | Yes                | Yes               |
 | DeepSeek          | `"deepseek"`         | deepseek-chat, etc.                   | Yes               | Yes                |
-| Anthropic Claude | `"claude"`| claude-3.7-sonnet, claude-3.5-haiku, etc.               | Yes               | Yes                |
+| Anthropic Claude | `"claude"`| claude-sonnet-4, claude-opus-4, etc.               | Yes               | Yes                |
 | OpenAI Compatible | `"openai-compatible"`| HuggingFace, OpenRouter, etc.                       | See Note 1 below               | See Note 1 below               |
 
 **Note 1:** Tool calls and Streaming support differ by AI platform and LLM model, so the availability of the `tool_calls` and `streaming` feature on the OpenAI Compatible platform depends on your chosen platform and model.
