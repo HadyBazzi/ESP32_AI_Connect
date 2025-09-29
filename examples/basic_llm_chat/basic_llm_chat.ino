@@ -10,8 +10,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 15, 2025
- * Version: 1.0.7
+ * Date: September 25, 2025
+ * Version: 1.0.8
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit)
@@ -22,7 +22,7 @@
  * 
  * Setup Instructions:
  * - Update the sketch with your WiFi credentials (`ssid`, `password`), API key (`apiKey`), platform
- *    (e.g., "deepseek"), and model (e.g., "deepseek-chat").
+ *    (e.g., "openai"), and model (e.g., "gpt-4.1").
  * - Upload the sketch to your ESP32 board and open the Serial Monitor (115200 baud) to interact with the AI.
  * 
  * License: MIT License (see LICENSE file in the repository for details)
@@ -35,7 +35,6 @@
  * 
  * Compatibility: Tested with ESP32 DevKitC and DOIT ESP32 DevKit boards.
  */
-
 #include <WiFi.h>
 #include <ESP32_AI_Connect.h>
 
@@ -44,8 +43,8 @@ const char* password = "YOUR_PASSWORD_SSID";  // Replace with your Wi-Fi passwor
 
 // --- AI API Configuration ---
 const char* apiKey = "Your_LLM_API_KEY";  // Replace with your key
-const char* model = "deepseek-chat";      // Replace with your model
-const char* platform = "deepseek";        // Or "gemini", "openai" - must match compiled handlers
+const char* model = "gpt-4.1";            // Replace with your model
+const char* platform = "openai";          // Or "gemini", "claude" - must match compiled handlers
 
 // --- Create the API Client Instance ---
 // Pass platform identifier, key, and model

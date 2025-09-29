@@ -12,8 +12,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 30, 2025
- * Version: 1.0.1
+ * Date: September 28, 2025
+ * Version: 1.0.2
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit, etc.)
@@ -55,7 +55,7 @@ const char* geminiApiKey = "your_Gemini_API_KEY";        // Google Gemini API ke
 const char* deepseekApiKey = "your_DeepSeek_API_KEY";    // DeepSeek API key
 
 // Initialize AI client (will be reconfigured using begin() method)
-ESP32_AI_Connect aiClient("openai", openaiApiKey, "gpt-3.5-turbo");
+ESP32_AI_Connect aiClient("openai", openaiApiKey, "gpt-4.1");
 
 // Test message to send to all platforms
 const String testMessage = "Explain what you are in exactly 2 sentences.";
@@ -69,9 +69,9 @@ struct PlatformConfig {
 };
 
 PlatformConfig platforms[] = {
-  {"openai", openaiApiKey, "gpt-3.5-turbo", "OpenAI GPT-3.5 Turbo"},
-  {"claude", claudeApiKey, "claude-3-5-sonnet-20241022", "Anthropic Claude 3.5 Sonnet"},
-  {"gemini", geminiApiKey, "gemini-2.0-flash", "Google Gemini 2.0 Flash"},
+  {"openai", openaiApiKey, "gpt-4.1", "OpenAI GPT-4.1"},
+  {"claude", claudeApiKey, "claude-sonnet-4-20250514", "Anthropic Claude 4 Sonnet"},
+  {"gemini", geminiApiKey, "gemini-2.5-flash", "Google Gemini 2.5 Flash"},
   {"deepseek", deepseekApiKey, "deepseek-chat", "DeepSeek Chat"}
 };
 

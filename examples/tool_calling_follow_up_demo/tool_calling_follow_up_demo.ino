@@ -11,8 +11,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 9, 2025
- * Version: 1.0.5
+ * Date: September 28, 2025
+ * Version: 1.0.7
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit)
@@ -206,37 +206,67 @@ void setup() {
   };
   
   // Tool 2: Device control tool
-  myTools[1] = "{"
-    "\"type\": \"function\","
-    "\"function\": {"
-      "\"name\": \"control_device\","
-      "\"description\": \"Control a smart home device such as lights, thermostat, or appliances.\","
-      "\"parameters\": {"
-        "\"type\": \"object\","
-        "\"properties\": {"
-          "\"device_type\": {"
-            "\"type\": \"string\","
-            "\"enum\": [\"light\", \"thermostat\", \"fan\", \"door\"],"
-            "\"description\": \"The type of device to control\""
-          "},"
-          "\"device_id\": {"
-            "\"type\": \"string\","
-            "\"description\": \"The identifier for the specific device\""
-          "},"
-          "\"action\": {"
-            "\"type\": \"string\","
-            "\"enum\": [\"turn_on\", \"turn_off\", \"set_temp\", \"set_brightness\", \"set_color\", \"set_speed\", \"open\", \"close\"],"
-            "\"description\": \"The action to perform on the device\""
-          "},"
-          "\"value\": {"
-            "\"type\": \"string\","
-            "\"description\": \"The value for the action (e.g., temperature, brightness level, color, speed)\""
-          "}"
-        "},"
-        "\"required\": [\"device_type\", \"device_id\", \"action\"]"
-      "}"
-    "}"
-  "}";
+  // Tool 2: Device control tool
+  myTools[1] = {
+    R"(
+        {
+            "type": "function",
+            "function": {
+                "name": "control_device",
+                "description": "Control a smart home device such as lights, thermostat, or appliances.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "device_type": {
+                            "type": "string",
+                            "enum": [
+                                "light",
+                                "thermostat",
+                                "fan",
+                                "door"
+                            ],
+                            "description": "The type of device to control"
+                        },
+                        "device_id": {
+                            "type": "string",
+                            "enum": [
+                                "bedroom_light",
+                                "kitche_thermostat",
+                                "main_fan",
+                                "mian_door"
+                            ],
+                            "description": "The identifier for the specific device"
+                        },
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "turn_on",
+                                "turn_off",
+                                "set_temp",
+                                "set_brightness",
+                                "set_color",
+                                "set_speed",
+                                "open",
+                                "close"
+                            ],
+                            "description": "The action to perform on the device"
+                        },
+                        "value": {
+                            "type": "string",
+                            "description": "The value for the action e.g., temperature, brightness level, color, speed"
+                        }
+                    },
+                    "required": [
+                        "device_type",
+                        "device_id",
+                        "action"
+                    ]
+                }
+            }
+        }
+      )"
+  };
+
 
   // --- Setup Tool Calling ---
 
@@ -265,7 +295,7 @@ void setup() {
   Serial.println("Tool Choice: " + aiClient.getTCChatToolChoice());
 
   // --- Initial prompt that will likely require tool calls ---
-  String userMessage = "I want to turn on the living room lights.";
+  String userMessage = "I want to turn on the bedroom room lights.";
   // String userMessage = "Check the weather in Paris."; // Test prompt to use the other tool
   runToolCallsDemo(userMessage);
 }

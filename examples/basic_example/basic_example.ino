@@ -3,15 +3,15 @@
  * 
  * Description:
  * This example demonstrates how to use the ESP32_AI_Connect library to connect
- * an ESP32 microcontroller to OpenAI's GPT-3.5-turbo model via a WiFi network.
+ * an ESP32 microcontroller to OpenAI's gpt-4.1 model via a WiFi network.
  * It shows how to configure the AI client with custom parameters (temperature, 
  * max tokens, and system role), and send a simple chat message to the AI model,
  * retrieving and displaying the response over the Serial monitor.
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 15, 2025
- * Version: 1.0.7
+ * Date: September 27, 2025
+ * Version: 1.0.9
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit, etc.)
@@ -49,8 +49,8 @@ const char* apiKey = "your_API_KEY";    // Your OpenAI API key (keep this secure
 // Initialize AI client with:
 // 1. Platform identifier ("openai", "gemini", or "deepseek")
 // 2. Your API key
-// 3. Model name ("gpt-3.5-turbo" for this example)
-ESP32_AI_Connect aiClient("openai", apiKey, "gpt-3.5-turbo");
+// 3. Model name ("gpt-4.1" for this example)
+ESP32_AI_Connect aiClient("openai", apiKey, "gpt-4.1");
 
 void setup() {
   // Initialize serial communication for debugging

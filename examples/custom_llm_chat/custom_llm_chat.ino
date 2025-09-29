@@ -15,8 +15,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 15, 2025
- * Version: 1.0.3
+ * Date: September 25, 2025
+ * Version: 1.0.5
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit)
@@ -57,7 +57,7 @@ const char* password = "[YOUR-WIFI-PASSWORD]"; // Replace with your Wi-Fi passwo
  * with the one you wish to use. Additionally, make sure to provide any required
  * information, such as the API key and model name, as needed. */
 const char* apiKey = "[YOUR-API-KEY]";          // Replace with your key
-const char* model = "qwen/qwq-32b";             // Replace with your model code
+const char* model = "qwen/qwen3-4b-fp8";        // Replace with your model code
 const char* platform = "openai-compatible";     // Using openai-compatible platform
 const char* customEndpoint = "https://router.huggingface.co/novita/v3/openai/chat/completions"; // Replace with your custom endpoint
 /*                             ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ 

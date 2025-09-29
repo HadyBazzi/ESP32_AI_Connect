@@ -12,8 +12,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 11, 2025
- * Version: 1.0.1
+ * Date: September 28, 2025
+ * Version: 1.0.2
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit)
@@ -45,8 +45,8 @@
 // #define ENABLE_DEBUG_OUTPUT // Optional: To see request/response details
 
 // --- Create the API Client Instance ---
-ESP32_AI_Connect aiClient(platform, apiKey, model);
-// ESP32_AI_Connect aiClient(platform, apiKey, model, customEndpoint);
+// ESP32_AI_Connect aiClient(platform, apiKey, model);
+ESP32_AI_Connect aiClient(platform, apiKey, model, customEndpoint);
 
 // --- Simulated functions that would be called when tools are invoked ---
 String getWeatherData(const String& city, const String& units) {
@@ -214,38 +214,61 @@ void setup() {
   };
   
   // Tool 2: Device control tool
-  myTools[1] = "{"
-    "\"type\": \"function\","
-    "\"function\": {"
-      "\"name\": \"control_device\","
-      "\"description\": \"Control a smart home device such as lights, thermostat, or appliances.\","
-      "\"parameters\": {"
-        "\"type\": \"object\","
-        "\"properties\": {"
-          "\"device_type\": {"
-            "\"type\": \"string\","
-            "\"enum\": [\"light\", \"thermostat\"],"
-            "\"description\": \"The type of device to control\""
-          "},"
-          "\"device_id\": {"
-            "\"type\": \"string\","
-            "\"enum\": [\"living_room_light\", \"kitchen_light\", \"bedroom_light\", \"thermostat\"],"
-            "\"description\": \"The identifier for the specific device\""
-          "},"
-          "\"action\": {"
-            "\"type\": \"string\","
-            "\"enum\": [\"turn_on\", \"turn_off\", \"set_temp\", \"set_brightness\", \"set_color\", \"set_speed\"],"
-            "\"description\": \"The action to perform on the device\""
-          "},"
-          "\"value\": {"
-            "\"type\": \"string\","
-            "\"description\": \"The value for the action (e.g., temperature, brightness, level, color, speed)\""
-          "}"
-        "},"
-        "\"required\": [\"device_type\", \"device_id\", \"action\"]"
-      "}"
-    "}"
-  "}";
+  myTools[1] = {
+    R"(
+        {
+            "type": "function",
+            "function": {
+                "name": "control_device",
+                "description": "Control a smart home device such as lights, thermostat, or appliances.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "device_type": {
+                            "type": "string",
+                            "enum": [
+                                "light",
+                                "thermostat"
+                            ],
+                            "description": "The type of device to control"
+                        },
+                        "device_id": {
+                            "type": "string",
+                            "enum": [
+                                "living_room_light",
+                                "kitchen_light",
+                                "bedroom_light",
+                                "thermostat"
+                            ],
+                            "description": "The identifier for the specific device"
+                        },
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "turn_on",
+                                "turn_off",
+                                "set_temp",
+                                "set_brightness",
+                                "set_color",
+                                "set_speed"
+                            ],
+                            "description": "The action to perform on the device"
+                        },
+                        "value": {
+                            "type": "string",
+                            "description": "The value for the action e.g., temperature, brightness, level, color, speed"
+                        }
+                    },
+                    "required": [
+                        "device_type",
+                        "device_id",
+                        "action"
+                    ]
+                }
+            }
+        }
+      )"
+  };  
 
   // --- Setup Tool Calling ---
 

@@ -10,8 +10,8 @@
  * 
  * Author: AvantMaker <admin@avantmaker.com>
  * Author Website: https://www.AvantMaker.com
- * Date: May 26, 2025
- * Version: 1.0.5
+ * Date: September 28, 2025
+ * Version: 1.0.6
  * 
  * Hardware Requirements:
  * - ESP32-based microcontroller (e.g., ESP32 DevKitC, DOIT ESP32 DevKit)
@@ -59,7 +59,7 @@ const char* apiKey = "your_ai_platform_api_key"; // Your AI platform API key
 // Platform and model selection - uncomment one set:
 // OpenAI Configuration
 // const char* platform = "openai";
-// const char* model = "gpt-3.5-turbo";     // or other OpenAI models.
+// const char* model = "gpt-4.1";     // or other OpenAI models.
 
 // DeepSeek Configuration  
 // const char* platform = "deepseek";
@@ -67,11 +67,11 @@ const char* apiKey = "your_ai_platform_api_key"; // Your AI platform API key
 
 // Gemini Configuration
 // const char* platform = "gemini";
-// const char* model = "gemini-2.0-flash";  // or other gemini models.
+// const char* model = "gemini-2.5-flash";  // or other gemini models.
 
 // Claude Configuration
-const char* platform = "claude";
-const char* model = "claude-3-7-sonnet-20250219";  // or other Claude models.
+// const char* platform = "claude";
+// const char* model = "claude-sonnet-4-20250514";  // or other Claude models.
 
 ESP32_AI_Connect aiClient(platform, apiKey, model);
 
