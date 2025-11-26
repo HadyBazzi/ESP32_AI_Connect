@@ -42,25 +42,25 @@ String AI_API_Gemini_Handler::buildRequestBody(const String& modelName, const St
     // --- Add System Instruction (Optional) ---
     // Reference: https://ai.google.dev/docs/prompting_with_media#system_instructions
     if (systemRole.length() > 0) {
-        JsonObject systemInstruction = doc.createNestedObject("systemInstruction");
-        JsonArray parts = systemInstruction.createNestedArray("parts");
-        JsonObject textPart = parts.createNestedObject();
+        JsonObject systemInstruction = doc["systemInstruction"].to<JsonObject>();
+        JsonArray parts = systemInstruction["parts"].to<JsonArray>();
+        JsonObject textPart = parts.add<JsonObject>();
         textPart["text"] = systemRole;
     }
 
     // --- Add User Content ---
     // Reference: https://ai.google.dev/docs/rest_api_overview#request_body
-    JsonArray contents = doc.createNestedArray("contents");
-    JsonObject userContent = contents.createNestedObject();
+    JsonArray contents = doc["contents"].to<JsonArray>();
+    JsonObject userContent = contents.add<JsonObject>();
     userContent["role"] = "user"; // Gemini uses 'user' and 'model' roles
-    JsonArray userParts = userContent.createNestedArray("parts");
-    JsonObject userTextPart = userParts.createNestedObject();
+    JsonArray userParts = userContent["parts"].to<JsonArray>();
+    JsonObject userTextPart = userParts.add<JsonObject>();
     userTextPart["text"] = userMessage;
 
     // --- Process custom parameters if provided ---
     if (customParams.length() > 0) {
         // Create a temporary document to parse the custom parameters
-        DynamicJsonDocument paramsDoc(512);
+        JsonDocument paramsDoc;
         DeserializationError error = deserializeJson(paramsDoc, customParams);
         
         // Only proceed if parsing was successful
@@ -83,7 +83,7 @@ String AI_API_Gemini_Handler::buildRequestBody(const String& modelName, const St
                     
                     // Create generationConfig object if it doesn't exist yet
                     if (!hasGenerationConfig) {
-                        generationConfig = doc.createNestedObject("generationConfig");
+                        generationConfig = doc["generationConfig"].to<JsonObject>();
                         hasGenerationConfig = true;
                     }
                     generationConfig[param.key()] = param.value();
@@ -104,11 +104,11 @@ String AI_API_Gemini_Handler::buildRequestBody(const String& modelName, const St
     JsonObject generationConfig;
     
     // Check if generationConfig already exists from custom parameters
-    if (doc.containsKey("generationConfig")) {
+    if (!doc["generationConfig"].isNull()) {
         generationConfig = doc["generationConfig"];
         configAdded = true;
     } else {
-        generationConfig = doc.createNestedObject("generationConfig");
+        generationConfig = doc["generationConfig"].to<JsonObject>();
     }
     
     if (temperature >= 0.0) {
@@ -154,28 +154,28 @@ String AI_API_Gemini_Handler::parseResponseBody(const String& responsePayload,
 
     // Check for top-level API errors first
     // Reference: https://ai.google.dev/docs/rest_api_overview#error_response
-    if (doc.containsKey("error")) {
+    if (!doc["error"].isNull()) {
         errorMsg = String("API Error: ") + (doc["error"]["message"] | "Unknown error");
         // You could potentially extract more details from doc["error"]["status"] or doc["error"]["details"]
         return "";
     }
 
     // Extract usage metadata (including tokens) if available
-    if (doc.containsKey("usageMetadata") && doc["usageMetadata"].is<JsonObject>()) {
+    if (doc["usageMetadata"].is<JsonObject>()) {
         JsonObject usageMetadata = doc["usageMetadata"];
-        if (usageMetadata.containsKey("totalTokenCount")) {
+        if (!usageMetadata["totalTokenCount"].isNull()) {
             _lastTotalTokens = usageMetadata["totalTokenCount"].as<int>(); // Store in base class member
         }
     }
 
     // Extract the content: response -> candidates[0] -> content -> parts[0] -> text
     // Reference: https://ai.google.dev/docs/rest_api_overview#response_body
-    if (doc.containsKey("candidates") && doc["candidates"].is<JsonArray>() && !doc["candidates"].isNull() && doc["candidates"].size() > 0) {
+    if (doc["candidates"].is<JsonArray>() && doc["candidates"].size() > 0) {
         JsonObject firstCandidate = doc["candidates"][0];
 
         // --- Check for Finish Reason (Important for Safety/Blocks) ---
         // Reference: https://ai.google.dev/docs/rest_api_overview#finishreason
-        if (firstCandidate.containsKey("finishReason")) {
+        if (!firstCandidate["finishReason"].isNull()) {
             _lastFinishReason = firstCandidate["finishReason"].as<String>(); // Store in base class member
             String reason = firstCandidate["finishReason"].as<String>();
             if (reason != "STOP" && reason != "MAX_TOKENS") {
@@ -188,15 +188,15 @@ String AI_API_Gemini_Handler::parseResponseBody(const String& responsePayload,
         }
 
         // --- Extract Content ---
-        if (firstCandidate.containsKey("content") && firstCandidate["content"].is<JsonObject>()) {
+        if (firstCandidate["content"].is<JsonObject>()) {
             JsonObject content = firstCandidate["content"];
-            if (content.containsKey("parts") && content["parts"].is<JsonArray>() && content["parts"].size() > 0) {
+            if (content["parts"].is<JsonArray>() && content["parts"].size() > 0) {
                 JsonObject firstPart = content["parts"][0];
-                if (firstPart.containsKey("text") && firstPart["text"].is<const char*>()) {
+                if (firstPart["text"].is<const char*>()) {
                     // Store the total tokens if available
-                    if (doc.containsKey("usageMetadata") && doc["usageMetadata"].is<JsonObject>()) {
+                    if (doc["usageMetadata"].is<JsonObject>()) {
                         JsonObject usageMetadata = doc["usageMetadata"];
-                        if (usageMetadata.containsKey("totalTokenCount")) {
+                        if (!usageMetadata["totalTokenCount"].isNull()) {
                             _totalTokens = usageMetadata["totalTokenCount"].as<int>();
                         }
                     }
@@ -214,11 +214,11 @@ String AI_API_Gemini_Handler::parseResponseBody(const String& responsePayload,
                 errorMsg = "Could not find 'content' object in response 'candidates'.";
              }
         }
-    } else if (doc.containsKey("promptFeedback")) {
+    } else if (!doc["promptFeedback"].isNull()) {
         // Handle cases where the request itself was blocked (no candidates generated)
         // Reference: https://ai.google.dev/docs/rest_api_overview#promptfeedback
         JsonObject promptFeedback = doc["promptFeedback"];
-        if (promptFeedback.containsKey("blockReason")) {
+        if (!promptFeedback["blockReason"].isNull()) {
              errorMsg = "Gemini prompt blocked. Reason: " + promptFeedback["blockReason"].as<String>();
              // Optionally parse promptFeedback["safetyRatings"] for details
         } else {
@@ -245,33 +245,33 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
 
     // --- Add System Instruction (Optional) ---
     if (systemMessage.length() > 0) {
-        JsonObject systemInstruction = doc.createNestedObject("systemInstruction");
-        JsonArray parts = systemInstruction.createNestedArray("parts");
-        JsonObject textPart = parts.createNestedObject();
+        JsonObject systemInstruction = doc["systemInstruction"].to<JsonObject>();
+        JsonArray parts = systemInstruction["parts"].to<JsonArray>();
+        JsonObject textPart = parts.add<JsonObject>();
         textPart["text"] = systemMessage;
     }
 
     // --- Add Generation Config (Optional) for maxTokens ---
     if (maxTokens > 0) {
-        JsonObject generationConfig = doc.createNestedObject("generationConfig");
+        JsonObject generationConfig = doc["generationConfig"].to<JsonObject>();
         generationConfig["maxOutputTokens"] = maxTokens;
     }
 
     // --- Add User Content ---
-    JsonArray contents = doc.createNestedArray("contents");
-    JsonObject userContent = contents.createNestedObject();
+    JsonArray contents = doc["contents"].to<JsonArray>();
+    JsonObject userContent = contents.add<JsonObject>();
     userContent["role"] = "user";
-    JsonArray userParts = userContent.createNestedArray("parts");
-    JsonObject userTextPart = userParts.createNestedObject();
+    JsonArray userParts = userContent["parts"].to<JsonArray>();
+    JsonObject userTextPart = userParts.add<JsonObject>();
     userTextPart["text"] = userMessage;
 
     // --- Add Tools Array ---
     // Reference: https://ai.google.dev/docs/function_calling
-    JsonArray tools = doc.createNestedArray("tools");
+    JsonArray tools = doc["tools"].to<JsonArray>();
     
     // Create a single tool object with an array of function declarations
-    JsonObject tool = tools.createNestedObject();
-    JsonArray functionDeclarations = tool.createNestedArray("functionDeclarations");
+    JsonObject tool = tools.add<JsonObject>();
+    JsonArray functionDeclarations = tool["functionDeclarations"].to<JsonArray>();
     
     // Process each tool definition in the toolsArray
     for (int i = 0; i < toolsArraySize; i++) {
@@ -290,32 +290,32 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
         String name, description;
         JsonVariant parameters;
         
-        if (toolDoc.containsKey("type") && toolDoc.containsKey("function")) {
+        if (!toolDoc["type"].isNull() && !toolDoc["function"].isNull()) {
             // OpenAI format: {"type":"function", "function":{...}}
             JsonObject function = toolDoc["function"];
             
-            if (function.containsKey("name")) {
+            if (!function["name"].isNull()) {
                 name = function["name"].as<String>();
             }
             
-            if (function.containsKey("description")) {
+            if (!function["description"].isNull()) {
                 description = function["description"].as<String>();
             }
             
-            if (function.containsKey("parameters")) {
+            if (!function["parameters"].isNull()) {
                 parameters = function["parameters"];
             }
         } else {
             // Simpler format: {"name":"...", "description":"...", "parameters":{...}}
-            if (toolDoc.containsKey("name")) {
+            if (!toolDoc["name"].isNull()) {
                 name = toolDoc["name"].as<String>();
             }
             
-            if (toolDoc.containsKey("description")) {
+            if (!toolDoc["description"].isNull()) {
                 description = toolDoc["description"].as<String>();
             }
             
-            if (toolDoc.containsKey("parameters")) {
+            if (!toolDoc["parameters"].isNull()) {
                 parameters = toolDoc["parameters"];
             }
         }
@@ -329,7 +329,7 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
         }
         
         // Create function declaration object
-        JsonObject functionDeclaration = functionDeclarations.createNestedObject();
+        JsonObject functionDeclaration = functionDeclarations.add<JsonObject>();
         functionDeclaration["name"] = name;
         
         if (description.length() > 0) {
@@ -338,38 +338,38 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
         
         if (!parameters.isNull()) {
             // Convert parameters to Gemini format if needed
-            JsonObject geminiParams = functionDeclaration.createNestedObject("parameters");
+            JsonObject geminiParams = functionDeclaration["parameters"].to<JsonObject>();
             
             // Check if we need to convert from OpenAI format to Gemini format
-            if (parameters.containsKey("type") && parameters["type"] == "object") {
+            if (parameters["type"] == "object") {
                 // OpenAI format uses lowercase types, Gemini uses uppercase
                 geminiParams["type"] = "OBJECT";
                 
                 // Copy properties
-                if (parameters.containsKey("properties")) {
+                if (!parameters["properties"].isNull()) {
                     JsonObject srcProps = parameters["properties"];
-                    JsonObject geminiProps = geminiParams.createNestedObject("properties");
+                    JsonObject geminiProps = geminiParams["properties"].to<JsonObject>();
                     
                     // Copy each property, converting types to uppercase
                     for (JsonPair kv : srcProps) {
                         JsonObject srcProp = kv.value().as<JsonObject>();
-                        JsonObject geminiProp = geminiProps.createNestedObject(kv.key().c_str());
+                        JsonObject geminiProp = geminiProps[kv.key().c_str()].to<JsonObject>();
                         
                         // Convert type to uppercase
-                        if (srcProp.containsKey("type")) {
+                        if (!srcProp["type"].isNull()) {
                             String type = srcProp["type"].as<String>();
                             type.toUpperCase(); // Modify the string in place
                             geminiProp["type"] = type; // Now assign the modified string
                         }
                         
                         // Copy other fields
-                        if (srcProp.containsKey("description")) {
+                        if (!srcProp["description"].isNull()) {
                             geminiProp["description"] = srcProp["description"];
                         }
                         
-                        if (srcProp.containsKey("enum")) {
+                        if (!srcProp["enum"].isNull()) {
                             JsonArray srcEnum = srcProp["enum"];
-                            JsonArray geminiEnum = geminiProp.createNestedArray("enum");
+                            JsonArray geminiEnum = geminiProp["enum"].to<JsonArray>();
                             for (JsonVariant enumVal : srcEnum) {
                                 geminiEnum.add(enumVal);
                             }
@@ -378,9 +378,9 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
                 }
                 
                 // Copy required array
-                if (parameters.containsKey("required")) {
+                if (!parameters["required"].isNull()) {
                     JsonArray srcRequired = parameters["required"];
-                    JsonArray geminiRequired = geminiParams.createNestedArray("required");
+                    JsonArray geminiRequired = geminiParams["required"].to<JsonArray>();
                     for (JsonVariant req : srcRequired) {
                         geminiRequired.add(req);
                     }
@@ -389,12 +389,12 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
                 // Assume parameters are already in Gemini format, copy directly
                 for (JsonPair kv : parameters.as<JsonObject>()) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = geminiParams.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = geminiParams[kv.key().c_str()].to<JsonObject>();
                         for (JsonPair subKv : kv.value().as<JsonObject>()) {
                             subObj[subKv.key().c_str()] = subKv.value();
                         }
                     } else if (kv.value().is<JsonArray>()) {
-                        JsonArray arr = geminiParams.createNestedArray(kv.key().c_str());
+                        JsonArray arr = geminiParams[kv.key().c_str()].to<JsonArray>();
                         for (JsonVariant item : kv.value().as<JsonArray>()) {
                             arr.add(item);
                         }
@@ -420,30 +420,30 @@ String AI_API_Gemini_Handler::buildToolCallsRequestBody(const String& modelName,
         // Check if it's a JSON object
         if (trimmedChoice.startsWith("{")) {
             // Try to parse it to see if it's valid JSON
-            DynamicJsonDocument toolChoiceDoc(512);
+            JsonDocument toolChoiceDoc;
             DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
             
-            if (!error && toolChoiceDoc.containsKey("type") && toolChoiceDoc["type"] == "function") {
+            if (!error && toolChoiceDoc["type"] == "function") {
                 // Convert OpenAI's function object to Gemini's format
-                JsonObject toolConfig = doc.createNestedObject("tool_config");
-                JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+                JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+                JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
                 functionCallingConfig["mode"] = "ANY";
             }
         } 
         // Check for string values - use exact user values, don't map
         else if (trimmedChoice.equalsIgnoreCase("auto")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "AUTO";
         } 
         else if (trimmedChoice.equalsIgnoreCase("none")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "NONE";
         } 
         else if (trimmedChoice.equalsIgnoreCase("required") || trimmedChoice.equalsIgnoreCase("any")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             String upperChoice = trimmedChoice;
             upperChoice.toUpperCase();
             functionCallingConfig["mode"] = upperChoice;
@@ -480,30 +480,30 @@ String AI_API_Gemini_Handler::parseToolCallsResponseBody(const String& responseP
     }
 
     // Check for top-level API errors first
-    if (doc.containsKey("error")) {
+    if (!doc["error"].isNull()) {
         errorMsg = String("API Error: ") + (doc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract usage metadata if available
-    if (doc.containsKey("usageMetadata") && doc["usageMetadata"].is<JsonObject>()) {
+    if (doc["usageMetadata"].is<JsonObject>()) {
         JsonObject usageMetadata = doc["usageMetadata"];
-        if (usageMetadata.containsKey("totalTokenCount")) {
+        if (!usageMetadata["totalTokenCount"].isNull()) {
             _lastTotalTokens = usageMetadata["totalTokenCount"].as<int>();
         }
     }
 
     // Create a new result object with tool calls
     JsonDocument resultDoc;
-    JsonArray toolCalls = resultDoc.createNestedArray("tool_calls");
+    JsonArray toolCalls = resultDoc["tool_calls"].to<JsonArray>();
     bool hasFunctionCall = false;
     
     // Extract function calls from candidates[0] -> content
-    if (doc.containsKey("candidates") && doc["candidates"].is<JsonArray>() && 
-        doc["candidates"].size() > 0 && doc["candidates"][0].containsKey("content")) {
+    if (doc["candidates"].is<JsonArray>() && 
+        doc["candidates"].size() > 0 && !doc["candidates"][0]["content"].isNull()) {
         
         // Store the original finish reason from Gemini
-        if (doc["candidates"][0].containsKey("finishReason")) {
+        if (!doc["candidates"][0]["finishReason"].isNull()) {
             String geminiFinishReason = doc["candidates"][0]["finishReason"].as<String>();
             
             // For debugging
@@ -515,22 +515,22 @@ String AI_API_Gemini_Handler::parseToolCallsResponseBody(const String& responseP
         JsonObject content = doc["candidates"][0]["content"];
         
         // Handle function calls (if any)
-        if (content.containsKey("parts") && content["parts"].is<JsonArray>()) {
+        if (content["parts"].is<JsonArray>()) {
             JsonArray parts = content["parts"];
             
             for (JsonVariant part : parts) {
-                if (part.containsKey("functionCall")) {
+                if (!part["functionCall"].isNull()) {
                     JsonObject functionCall = part["functionCall"];
                     hasFunctionCall = true;
                     
-                    JsonObject toolCall = toolCalls.createNestedObject();
+                    JsonObject toolCall = toolCalls.add<JsonObject>();
                     toolCall["type"] = "function";
                     
-                    if (functionCall.containsKey("name")) {
-                        JsonObject function = toolCall.createNestedObject("function");
+                    if (!functionCall["name"].isNull()) {
+                        JsonObject function = toolCall["function"].to<JsonObject>();
                         function["name"] = functionCall["name"].as<String>();
                         
-                        if (functionCall.containsKey("args")) {
+                        if (!functionCall["args"].isNull()) {
                             String args;
                             serializeJson(functionCall["args"], args);
                             function["arguments"] = args;
@@ -546,7 +546,7 @@ String AI_API_Gemini_Handler::parseToolCallsResponseBody(const String& responseP
                 // No function calls found, check if there's text content
                 bool hasTextContent = false;
                 for (JsonVariant part : parts) {
-                    if (part.containsKey("text")) {
+                    if (!part["text"].isNull()) {
                         hasTextContent = true;
                         
                         // Return text content directly
@@ -597,26 +597,26 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
 
     // --- Add System Instruction (Optional) ---
     if (systemMessage.length() > 0) {
-        JsonObject systemInstruction = doc.createNestedObject("systemInstruction");
-        JsonArray parts = systemInstruction.createNestedArray("parts");
-        JsonObject textPart = parts.createNestedObject();
+        JsonObject systemInstruction = doc["systemInstruction"].to<JsonObject>();
+        JsonArray parts = systemInstruction["parts"].to<JsonArray>();
+        JsonObject textPart = parts.add<JsonObject>();
         textPart["text"] = systemMessage;
     }
 
     // --- Add Generation Config (Optional) for followUpMaxTokens ---
     if (followUpMaxTokens > 0) {
-        JsonObject generationConfig = doc.createNestedObject("generationConfig");
+        JsonObject generationConfig = doc["generationConfig"].to<JsonObject>();
         generationConfig["maxOutputTokens"] = followUpMaxTokens;
     }
 
     // --- Build Conversation History ---
-    JsonArray contents = doc.createNestedArray("contents");
+    JsonArray contents = doc["contents"].to<JsonArray>();
 
     // Add user's original message
-    JsonObject userContent = contents.createNestedObject();
+    JsonObject userContent = contents.add<JsonObject>();
     userContent["role"] = "user";
-    JsonArray userParts = userContent.createNestedArray("parts");
-    JsonObject userTextPart = userParts.createNestedObject();
+    JsonArray userParts = userContent["parts"].to<JsonArray>();
+    JsonObject userTextPart = userParts.add<JsonObject>();
     userTextPart["text"] = lastUserMessage;
 
     // Parse and add the assistant's response with function calls
@@ -624,23 +624,23 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
     DeserializationError assistantError = deserializeJson(assistantDoc, lastAssistantToolCallsJson);
     if (!assistantError) {
         // Create the assistant message
-        JsonObject assistantContent = contents.createNestedObject();
+        JsonObject assistantContent = contents.add<JsonObject>();
         assistantContent["role"] = "model";
-        JsonArray assistantParts = assistantContent.createNestedArray("parts");
+        JsonArray assistantParts = assistantContent["parts"].to<JsonArray>();
         
         // Add function calls (ensure we have at least one part)
         if (assistantDoc.is<JsonArray>()) {
             JsonArray toolCalls = assistantDoc.as<JsonArray>();
             
             for (JsonVariant toolCall : toolCalls) {
-                if (toolCall.containsKey("type") && toolCall["type"] == "function" && 
-                    toolCall.containsKey("function")) {
+                if (toolCall["type"] == "function" && 
+                    !toolCall["function"].isNull()) {
                     
                     JsonObject function = toolCall["function"];
                     
-                    if (function.containsKey("name") && function.containsKey("arguments")) {
-                        JsonObject functionCallPart = assistantParts.createNestedObject();
-                        JsonObject functionCall = functionCallPart.createNestedObject("functionCall");
+                    if (!function["name"].isNull() && !function["arguments"].isNull()) {
+                        JsonObject functionCallPart = assistantParts.add<JsonObject>();
+                        JsonObject functionCall = functionCallPart["functionCall"].to<JsonObject>();
                         
                         functionCall["name"] = function["name"].as<String>();
                         
@@ -659,7 +659,7 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
             
             // If no parts were added, add a dummy text part to avoid empty parts array
             if (assistantParts.size() == 0) {
-                JsonObject textPart = assistantParts.createNestedObject();
+                JsonObject textPart = assistantParts.add<JsonObject>();
                 textPart["text"] = "";
             }
         }
@@ -672,17 +672,17 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         JsonArray results = resultsDoc.as<JsonArray>();
         
         for (JsonVariant result : results) {
-            if (result.containsKey("function") && 
-                result["function"].containsKey("name") && 
-                result["function"].containsKey("output")) {
+            if (result["function"].is<JsonObject>() && 
+                !result["function"]["name"].isNull() && 
+                !result["function"]["output"].isNull()) {
                 
                 // Add function response
-                JsonObject userFunctionContent = contents.createNestedObject();
+                JsonObject userFunctionContent = contents.add<JsonObject>();
                 userFunctionContent["role"] = "user";
-                JsonArray userFunctionParts = userFunctionContent.createNestedArray("parts");
+                JsonArray userFunctionParts = userFunctionContent["parts"].to<JsonArray>();
                 
-                JsonObject functionResponsePart = userFunctionParts.createNestedObject();
-                JsonObject functionResponse = functionResponsePart.createNestedObject("functionResponse");
+                JsonObject functionResponsePart = userFunctionParts.add<JsonObject>();
+                JsonObject functionResponse = functionResponsePart["functionResponse"].to<JsonObject>();
                 
                 functionResponse["name"] = result["function"]["name"].as<String>();
                 
@@ -690,11 +690,11 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 JsonDocument outputDoc;
                 DeserializationError outputError = deserializeJson(outputDoc, result["function"]["output"].as<String>());
                 if (!outputError) {
-                    JsonObject contentObj = functionResponse.createNestedObject("response");
+                    JsonObject contentObj = functionResponse["response"].to<JsonObject>();
                     contentObj["content"] = outputDoc.as<JsonObject>();
                 } else {
                     // If not valid JSON, use text format
-                    JsonObject contentObj = functionResponse.createNestedObject("response");
+                    JsonObject contentObj = functionResponse["response"].to<JsonObject>();
                     contentObj["content"] = result["function"]["output"].as<String>();
                 }
             }
@@ -703,9 +703,9 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
 
     // --- Add Tools Array for Follow-up ---
     // Create a single tool object with an array of function declarations
-    JsonArray tools = doc.createNestedArray("tools");
-    JsonObject tool = tools.createNestedObject();
-    JsonArray functionDeclarations = tool.createNestedArray("functionDeclarations");
+    JsonArray tools = doc["tools"].to<JsonArray>();
+    JsonObject tool = tools.add<JsonObject>();
+    JsonArray functionDeclarations = tool["functionDeclarations"].to<JsonArray>();
     
     // Process each tool definition in the toolsArray (copy from buildToolCallsRequestBody)
     for (int i = 0; i < toolsArraySize; i++) {
@@ -724,32 +724,32 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         String name, description;
         JsonVariant parameters;
         
-        if (toolDoc.containsKey("type") && toolDoc.containsKey("function")) {
+        if (!toolDoc["type"].isNull() && !toolDoc["function"].isNull()) {
             // OpenAI format: {"type":"function", "function":{...}}
             JsonObject function = toolDoc["function"];
             
-            if (function.containsKey("name")) {
+            if (!function["name"].isNull()) {
                 name = function["name"].as<String>();
             }
             
-            if (function.containsKey("description")) {
+            if (!function["description"].isNull()) {
                 description = function["description"].as<String>();
             }
             
-            if (function.containsKey("parameters")) {
+            if (!function["parameters"].isNull()) {
                 parameters = function["parameters"];
             }
         } else {
             // Simpler format: {"name":"...", "description":"...", "parameters":{...}}
-            if (toolDoc.containsKey("name")) {
+            if (!toolDoc["name"].isNull()) {
                 name = toolDoc["name"].as<String>();
             }
             
-            if (toolDoc.containsKey("description")) {
+            if (!toolDoc["description"].isNull()) {
                 description = toolDoc["description"].as<String>();
             }
             
-            if (toolDoc.containsKey("parameters")) {
+            if (!toolDoc["parameters"].isNull()) {
                 parameters = toolDoc["parameters"];
             }
         }
@@ -763,7 +763,7 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         }
         
         // Create function declaration object
-        JsonObject functionDeclaration = functionDeclarations.createNestedObject();
+        JsonObject functionDeclaration = functionDeclarations.add<JsonObject>();
         functionDeclaration["name"] = name;
         
         if (description.length() > 0) {
@@ -772,38 +772,38 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         
         if (!parameters.isNull()) {
             // Convert parameters to Gemini format if needed
-            JsonObject geminiParams = functionDeclaration.createNestedObject("parameters");
+            JsonObject geminiParams = functionDeclaration["parameters"].to<JsonObject>();
             
             // Check if we need to convert from OpenAI format to Gemini format
-            if (parameters.containsKey("type") && parameters["type"] == "object") {
+            if (parameters["type"] == "object") {
                 // OpenAI format uses lowercase types, Gemini uses uppercase
                 geminiParams["type"] = "OBJECT";
                 
                 // Copy properties
-                if (parameters.containsKey("properties")) {
+                if (!parameters["properties"].isNull()) {
                     JsonObject srcProps = parameters["properties"];
-                    JsonObject geminiProps = geminiParams.createNestedObject("properties");
+                    JsonObject geminiProps = geminiParams["properties"].to<JsonObject>();
                     
                     // Copy each property, converting types to uppercase
                     for (JsonPair kv : srcProps) {
                         JsonObject srcProp = kv.value().as<JsonObject>();
-                        JsonObject geminiProp = geminiProps.createNestedObject(kv.key().c_str());
+                        JsonObject geminiProp = geminiProps[kv.key().c_str()].to<JsonObject>();
                         
                         // Convert type to uppercase
-                        if (srcProp.containsKey("type")) {
+                        if (!srcProp["type"].isNull()) {
                             String type = srcProp["type"].as<String>();
                             type.toUpperCase(); // Modify the string in place
                             geminiProp["type"] = type; // Now assign the modified string
                         }
                         
                         // Copy other fields
-                        if (srcProp.containsKey("description")) {
+                        if (!srcProp["description"].isNull()) {
                             geminiProp["description"] = srcProp["description"];
                         }
                         
-                        if (srcProp.containsKey("enum")) {
+                        if (!srcProp["enum"].isNull()) {
                             JsonArray srcEnum = srcProp["enum"];
-                            JsonArray geminiEnum = geminiProp.createNestedArray("enum");
+                            JsonArray geminiEnum = geminiProp["enum"].to<JsonArray>();
                             for (JsonVariant enumVal : srcEnum) {
                                 geminiEnum.add(enumVal);
                             }
@@ -812,9 +812,9 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 }
                 
                 // Copy required array
-                if (parameters.containsKey("required")) {
+                if (!parameters["required"].isNull()) {
                     JsonArray srcRequired = parameters["required"];
-                    JsonArray geminiRequired = geminiParams.createNestedArray("required");
+                    JsonArray geminiRequired = geminiParams["required"].to<JsonArray>();
                     for (JsonVariant req : srcRequired) {
                         geminiRequired.add(req);
                     }
@@ -823,12 +823,12 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 // Assume parameters are already in Gemini format, copy directly
                 for (JsonPair kv : parameters.as<JsonObject>()) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = geminiParams.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = geminiParams[kv.key().c_str()].to<JsonObject>();
                         for (JsonPair subKv : kv.value().as<JsonObject>()) {
                             subObj[subKv.key().c_str()] = subKv.value();
                         }
                     } else if (kv.value().is<JsonArray>()) {
-                        JsonArray arr = geminiParams.createNestedArray(kv.key().c_str());
+                        JsonArray arr = geminiParams[kv.key().c_str()].to<JsonArray>();
                         for (JsonVariant item : kv.value().as<JsonArray>()) {
                             arr.add(item);
                         }
@@ -854,30 +854,30 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         // Check if it's a JSON object
         if (trimmedChoice.startsWith("{")) {
             // Try to parse it to see if it's valid JSON
-            DynamicJsonDocument toolChoiceDoc(512);
+            JsonDocument toolChoiceDoc;
             DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
             
-            if (!error && toolChoiceDoc.containsKey("type") && toolChoiceDoc["type"] == "function") {
+            if (!error && toolChoiceDoc["type"] == "function") {
                 // Convert OpenAI's function object to Gemini's format
-                JsonObject toolConfig = doc.createNestedObject("tool_config");
-                JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+                JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+                JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
                 functionCallingConfig["mode"] = "ANY";
             }
         } 
         // Check for string values - use exact user values, don't map
         else if (trimmedChoice.equalsIgnoreCase("auto")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "AUTO";
         } 
         else if (trimmedChoice.equalsIgnoreCase("none")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "NONE";
         } 
         else if (trimmedChoice.equalsIgnoreCase("required") || trimmedChoice.equalsIgnoreCase("any")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             String upperChoice = trimmedChoice;
             upperChoice.toUpperCase();
             functionCallingConfig["mode"] = upperChoice;
@@ -896,30 +896,30 @@ String AI_API_Gemini_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         // Check if it's a JSON object
         if (trimmedChoice.startsWith("{")) {
             // Try to parse it to see if it's valid JSON
-            DynamicJsonDocument toolChoiceDoc(512);
+            JsonDocument toolChoiceDoc;
             DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
             
-            if (!error && toolChoiceDoc.containsKey("type") && toolChoiceDoc["type"] == "function") {
+            if (!error && toolChoiceDoc["type"] == "function") {
                 // Convert OpenAI's function object to Gemini's format
-                JsonObject toolConfig = doc.createNestedObject("tool_config");
-                JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+                JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+                JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
                 functionCallingConfig["mode"] = "ANY";
             }
         } 
         // Check for string values - use exact user values, don't map
         else if (trimmedChoice.equalsIgnoreCase("auto")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "AUTO";
         } 
         else if (trimmedChoice.equalsIgnoreCase("none")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             functionCallingConfig["mode"] = "NONE";
         } 
         else if (trimmedChoice.equalsIgnoreCase("required") || trimmedChoice.equalsIgnoreCase("any")) {
-            JsonObject toolConfig = doc.createNestedObject("tool_config");
-            JsonObject functionCallingConfig = toolConfig.createNestedObject("function_calling_config");
+            JsonObject toolConfig = doc["tool_config"].to<JsonObject>();
+            JsonObject functionCallingConfig = toolConfig["function_calling_config"].to<JsonObject>();
             // Use the user's exact value, converting to uppercase for Gemini API
             String upperChoice = trimmedChoice;
             upperChoice.toUpperCase();
@@ -950,24 +950,24 @@ String AI_API_Gemini_Handler::buildStreamRequestBody(const String& modelName, co
 
     // --- Add System Instruction (Optional) ---
     if (systemRole.length() > 0) {
-        JsonObject systemInstruction = doc.createNestedObject("systemInstruction");
-        JsonArray parts = systemInstruction.createNestedArray("parts");
-        JsonObject textPart = parts.createNestedObject();
+        JsonObject systemInstruction = doc["systemInstruction"].to<JsonObject>();
+        JsonArray parts = systemInstruction["parts"].to<JsonArray>();
+        JsonObject textPart = parts.add<JsonObject>();
         textPart["text"] = systemRole;
     }
 
     // --- Add User Content ---
-    JsonArray contents = doc.createNestedArray("contents");
-    JsonObject userContent = contents.createNestedObject();
+    JsonArray contents = doc["contents"].to<JsonArray>();
+    JsonObject userContent = contents.add<JsonObject>();
     userContent["role"] = "user";
-    JsonArray userParts = userContent.createNestedArray("parts");
-    JsonObject userTextPart = userParts.createNestedObject();
+    JsonArray userParts = userContent["parts"].to<JsonArray>();
+    JsonObject userTextPart = userParts.add<JsonObject>();
     userTextPart["text"] = userMessage;
 
     // --- Process custom parameters if provided ---
     if (customParams.length() > 0) {
         // Create a temporary document to parse the custom parameters
-        DynamicJsonDocument paramsDoc(512);
+        JsonDocument paramsDoc;
         DeserializationError error = deserializeJson(paramsDoc, customParams);
         
         // Only proceed if parsing was successful
@@ -990,7 +990,7 @@ String AI_API_Gemini_Handler::buildStreamRequestBody(const String& modelName, co
                     
                     // Create generationConfig object if it doesn't exist yet
                     if (!hasGenerationConfig) {
-                        generationConfig = doc.createNestedObject("generationConfig");
+                        generationConfig = doc["generationConfig"].to<JsonObject>();
                         hasGenerationConfig = true;
                     }
                     generationConfig[param.key()] = param.value();
@@ -1009,11 +1009,11 @@ String AI_API_Gemini_Handler::buildStreamRequestBody(const String& modelName, co
     JsonObject generationConfig;
     
     // Check if generationConfig already exists from custom parameters
-    if (doc.containsKey("generationConfig")) {
+    if (!doc["generationConfig"].isNull()) {
         generationConfig = doc["generationConfig"];
         configAdded = true;
     } else {
-        generationConfig = doc.createNestedObject("generationConfig");
+        generationConfig = doc["generationConfig"].to<JsonObject>();
     }
     
     if (temperature >= 0.0) {
@@ -1066,7 +1066,7 @@ String AI_API_Gemini_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
 
     // Parse the JSON chunk
-    DynamicJsonDocument chunkDoc(1024); // Larger buffer for Gemini responses
+    JsonDocument chunkDoc; // Larger buffer for Gemini responses
     DeserializationError error = deserializeJson(chunkDoc, jsonPart);
     if (error) {
         errorMsg = "Failed to parse Gemini streaming chunk JSON: " + String(error.c_str());
@@ -1074,27 +1074,27 @@ String AI_API_Gemini_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
 
     // Check for error in the chunk
-    if (chunkDoc.containsKey("error")) {
+    if (!chunkDoc["error"].isNull()) {
         errorMsg = String("API Error in stream: ") + (chunkDoc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract usage metadata if available
-    if (chunkDoc.containsKey("usageMetadata") && chunkDoc["usageMetadata"].is<JsonObject>()) {
+    if (chunkDoc["usageMetadata"].is<JsonObject>()) {
         JsonObject usageMetadata = chunkDoc["usageMetadata"];
-        if (usageMetadata.containsKey("totalTokenCount")) {
+        if (!usageMetadata["totalTokenCount"].isNull()) {
             _lastTotalTokens = usageMetadata["totalTokenCount"].as<int>();
         }
     }
 
     // Extract content from candidates array
-    if (chunkDoc.containsKey("candidates") && chunkDoc["candidates"].is<JsonArray>() && 
+    if (chunkDoc["candidates"].is<JsonArray>() && 
         chunkDoc["candidates"].size() > 0) {
         
         JsonObject firstCandidate = chunkDoc["candidates"][0];
 
         // Check for finish reason
-        if (firstCandidate.containsKey("finishReason")) {
+        if (!firstCandidate["finishReason"].isNull()) {
             _lastFinishReason = firstCandidate["finishReason"].as<String>();
             String reason = firstCandidate["finishReason"].as<String>();
             
@@ -1112,11 +1112,11 @@ String AI_API_Gemini_Handler::processStreamChunk(const String& rawChunk, bool& i
         }
 
         // Extract content from the candidate
-        if (firstCandidate.containsKey("content") && firstCandidate["content"].is<JsonObject>()) {
+        if (firstCandidate["content"].is<JsonObject>()) {
             JsonObject content = firstCandidate["content"];
-            if (content.containsKey("parts") && content["parts"].is<JsonArray>() && content["parts"].size() > 0) {
+            if (content["parts"].is<JsonArray>() && content["parts"].size() > 0) {
                 JsonObject firstPart = content["parts"][0];
-                if (firstPart.containsKey("text") && firstPart["text"].is<const char*>()) {
+                if (firstPart["text"].is<const char*>()) {
                     return firstPart["text"].as<String>();
                 }
             }

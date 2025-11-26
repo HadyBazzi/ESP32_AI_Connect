@@ -26,20 +26,20 @@ String AI_API_DeepSeek_Handler::buildRequestBody(const String& modelName, const 
 
     doc["model"] = modelName;
     
-    JsonArray messages = doc.createNestedArray("messages");
+    JsonArray messages = doc["messages"].to<JsonArray>();
     if (systemRole.length() > 0) {
-        JsonObject systemMsg = messages.createNestedObject();
+        JsonObject systemMsg = messages.add<JsonObject>();
         systemMsg["role"] = "system";
         systemMsg["content"] = systemRole;
     }
-    JsonObject userMsg = messages.createNestedObject();
+    JsonObject userMsg = messages.add<JsonObject>();
     userMsg["role"] = "user";
     userMsg["content"] = userMessage;
 
     // Process custom parameters if provided
     if (customParams.length() > 0) {
         // Create a temporary document to parse the custom parameters
-        DynamicJsonDocument paramsDoc(512);
+        JsonDocument paramsDoc;
         DeserializationError error = deserializeJson(paramsDoc, customParams);
         
         // Only proceed if parsing was successful
@@ -76,30 +76,30 @@ String AI_API_DeepSeek_Handler::parseResponseBody(const String& responsePayload,
         return "";
     }
 
-    if (doc.containsKey("error")) {
+    if (!doc["error"].isNull()) {
         errorMsg = String("API Error: ") + (doc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract total tokens if available
-    if (doc.containsKey("usage") && doc["usage"].is<JsonObject>()) {
+    if (doc["usage"].is<JsonObject>()) {
         JsonObject usage = doc["usage"];
-        if (usage.containsKey("total_tokens")) {
+        if (!usage["total_tokens"].isNull()) {
             _lastTotalTokens = usage["total_tokens"].as<int>(); // Store in base class member
         }
     }
 
-    if (doc.containsKey("choices") && doc["choices"].is<JsonArray>() && !doc["choices"].isNull() && doc["choices"].size() > 0) {
+    if (doc["choices"].is<JsonArray>() && doc["choices"].size() > 0) {
        JsonObject firstChoice = doc["choices"][0];
 
        // Extract finish reason if available
-       if (firstChoice.containsKey("finish_reason")) {
+       if (!firstChoice["finish_reason"].isNull()) {
            _lastFinishReason = firstChoice["finish_reason"].as<String>(); // Store in base class member
        }
 
-       if (firstChoice.containsKey("message") && firstChoice["message"].is<JsonObject>()) {
+       if (firstChoice["message"].is<JsonObject>()) {
            JsonObject message = firstChoice["message"];
-           if (message.containsKey("content") && message["content"].is<const char*>()) {
+           if (message["content"].is<const char*>()) {
                return message["content"].as<String>();
            }
        }
@@ -120,20 +120,20 @@ String AI_API_DeepSeek_Handler::buildStreamRequestBody(const String& modelName, 
     doc["model"] = modelName;
     doc["stream"] = true; // Enable streaming
     
-    JsonArray messages = doc.createNestedArray("messages");
+    JsonArray messages = doc["messages"].to<JsonArray>();
     if (systemRole.length() > 0) {
-        JsonObject systemMsg = messages.createNestedObject();
+        JsonObject systemMsg = messages.add<JsonObject>();
         systemMsg["role"] = "system";
         systemMsg["content"] = systemRole;
     }
-    JsonObject userMsg = messages.createNestedObject();
+    JsonObject userMsg = messages.add<JsonObject>();
     userMsg["role"] = "user";
     userMsg["content"] = userMessage;
 
     // Process custom parameters if provided
     if (customParams.length() > 0) {
         // Create a temporary document to parse the custom parameters
-        DynamicJsonDocument paramsDoc(512);
+        JsonDocument paramsDoc;
         DeserializationError error = deserializeJson(paramsDoc, customParams);
         
         // Only proceed if parsing was successful
@@ -195,7 +195,7 @@ String AI_API_DeepSeek_Handler::processStreamChunk(const String& rawChunk, bool&
     }
 
     // Parse the JSON chunk
-    DynamicJsonDocument chunkDoc(512);
+    JsonDocument chunkDoc;
     DeserializationError error = deserializeJson(chunkDoc, jsonPart);
     if (error) {
         errorMsg = "Failed to parse streaming chunk JSON: " + String(error.c_str());
@@ -203,28 +203,28 @@ String AI_API_DeepSeek_Handler::processStreamChunk(const String& rawChunk, bool&
     }
 
     // Check for error in the chunk
-    if (chunkDoc.containsKey("error")) {
+    if (!chunkDoc["error"].isNull()) {
         errorMsg = String("API Error in stream: ") + (chunkDoc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract content from delta.content (same format as OpenAI)
-    if (chunkDoc.containsKey("choices") && chunkDoc["choices"].is<JsonArray>() && 
+    if (chunkDoc["choices"].is<JsonArray>() && 
         chunkDoc["choices"].size() > 0) {
         
         JsonObject firstChoice = chunkDoc["choices"][0];
         
         // Check finish_reason for completion
-        if (firstChoice.containsKey("finish_reason") && 
+        if (!firstChoice["finish_reason"].isNull() && 
             !firstChoice["finish_reason"].isNull()) {
             isComplete = true;
             _lastFinishReason = firstChoice["finish_reason"].as<String>();
         }
         
         // Extract delta content
-        if (firstChoice.containsKey("delta") && firstChoice["delta"].is<JsonObject>()) {
+        if (firstChoice["delta"].is<JsonObject>()) {
             JsonObject delta = firstChoice["delta"];
-            if (delta.containsKey("content") && delta["content"].is<const char*>()) {
+            if (delta["content"].is<const char*>()) {
                 return delta["content"].as<String>();
             }
         }
@@ -252,17 +252,17 @@ String AI_API_DeepSeek_Handler::buildToolCallsRequestBody(const String& modelNam
     }
     
     // Add messages array
-    JsonArray messages = doc.createNestedArray("messages");
+    JsonArray messages = doc["messages"].to<JsonArray>();
     
     // Add system message if specified
     if (systemMessage.length() > 0) {
-        JsonObject systemMsg = messages.createNestedObject();
+        JsonObject systemMsg = messages.add<JsonObject>();
         systemMsg["role"] = "system";
         systemMsg["content"] = systemMessage;
     }
     
     // Add user message
-    JsonObject userMsg = messages.createNestedObject();
+    JsonObject userMsg = messages.add<JsonObject>();
     userMsg["role"] = "user";
     userMsg["content"] = userMessage;
     
@@ -279,17 +279,17 @@ String AI_API_DeepSeek_Handler::buildToolCallsRequestBody(const String& modelNam
         // Check if it starts with { - might be a JSON object string
         else if (trimmedChoice.startsWith("{")) {
             // Try to parse it as a JSON object
-            DynamicJsonDocument toolChoiceDoc(512);
+            JsonDocument toolChoiceDoc;
             DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
             
             if (!error) {
                 // Successfully parsed as JSON - add as an object
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 
                 // Copy all fields from the parsed JSON
                 for (JsonPair kv : toolChoiceDoc.as<JsonObject>()) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = toolChoiceObj.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = toolChoiceObj[kv.key().c_str()].to<JsonObject>();
                         JsonObject srcSubObj = kv.value().as<JsonObject>();
                         
                         for (JsonPair subKv : srcSubObj) {
@@ -316,12 +316,12 @@ String AI_API_DeepSeek_Handler::buildToolCallsRequestBody(const String& modelNam
     }
     
     // Add tools array (same format as OpenAI)
-    JsonArray tools = doc.createNestedArray("tools");
+    JsonArray tools = doc["tools"].to<JsonArray>();
     
     // Parse and add each tool from the toolsArray
     for (int i = 0; i < toolsArraySize; i++) {
         // Create a temporary JsonDocument to parse the tool JSON string
-        StaticJsonDocument<512> tempDoc; // Adjust size as needed
+        JsonDocument tempDoc;
         DeserializationError error = deserializeJson(tempDoc, toolsArray[i]);
         
         if (error) {
@@ -330,40 +330,40 @@ String AI_API_DeepSeek_Handler::buildToolCallsRequestBody(const String& modelNam
         }
         
         // Check if the tool is already in OpenAI format (has 'type' and 'function' fields)
-        if (tempDoc.containsKey("type") && tempDoc.containsKey("function")) {
+        if (!tempDoc["type"].isNull() && !tempDoc["function"].isNull()) {
             // Already in OpenAI format - copy directly to tools array
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             
             // Copy type
             tool["type"] = tempDoc["type"];
             
             // Copy function
-            JsonObject function = tool.createNestedObject("function");
+            JsonObject function = tool["function"].to<JsonObject>();
             JsonObject srcFunction = tempDoc["function"];
             
             // Copy function properties
-            if (srcFunction.containsKey("name")) {
+            if (!srcFunction["name"].isNull()) {
                 function["name"] = srcFunction["name"].as<String>();
             }
             
-            if (srcFunction.containsKey("description")) {
+            if (!srcFunction["description"].isNull()) {
                 function["description"] = srcFunction["description"].as<String>();
             }
             
-            if (srcFunction.containsKey("parameters")) {
-                JsonObject params = function.createNestedObject("parameters");
+            if (!srcFunction["parameters"].isNull()) {
+                JsonObject params = function["parameters"].to<JsonObject>();
                 JsonObject srcParams = srcFunction["parameters"];
                 
                 for (JsonPair kv : srcParams) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = params.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = params[kv.key().c_str()].to<JsonObject>();
                         JsonObject srcSubObj = kv.value().as<JsonObject>();
                         
                         for (JsonPair subKv : srcSubObj) {
                             subObj[subKv.key().c_str()] = subKv.value();
                         }
                     } else if (kv.value().is<JsonArray>()) {
-                        JsonArray arr = params.createNestedArray(kv.key().c_str());
+                        JsonArray arr = params[kv.key().c_str()].to<JsonArray>();
                         JsonArray srcArr = kv.value().as<JsonArray>();
                         
                         for (const auto& item : srcArr) {
@@ -377,22 +377,22 @@ String AI_API_DeepSeek_Handler::buildToolCallsRequestBody(const String& modelNam
         } else {
             // Simple format - wrap in OpenAI format
             // Add this tool to the tools array with type: "function"
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             tool["type"] = "function";
             
-            JsonObject function = tool.createNestedObject("function");
+            JsonObject function = tool["function"].to<JsonObject>();
             
             // Copy all properties from the simple format to the function object
             for (JsonPair kv : tempDoc.as<JsonObject>()) {
                 if (kv.value().is<JsonObject>()) {
-                    JsonObject subObj = function.createNestedObject(kv.key().c_str());
+                    JsonObject subObj = function[kv.key().c_str()].to<JsonObject>();
                     JsonObject srcSubObj = kv.value().as<JsonObject>();
                     
                     for (JsonPair subKv : srcSubObj) {
                         subObj[subKv.key().c_str()] = subKv.value();
                     }
                 } else if (kv.value().is<JsonArray>()) {
-                    JsonArray arr = function.createNestedArray(kv.key().c_str());
+                    JsonArray arr = function[kv.key().c_str()].to<JsonArray>();
                     JsonArray srcArr = kv.value().as<JsonArray>();
                     
                     for (const auto& item : srcArr) {
@@ -422,32 +422,32 @@ String AI_API_DeepSeek_Handler::parseToolCallsResponseBody(const String& respons
         return "";
     }
 
-    if (doc.containsKey("error")) {
+    if (!doc["error"].isNull()) {
         errorMsg = String("API Error: ") + (doc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract total tokens if available
-    if (doc.containsKey("usage") && doc["usage"].is<JsonObject>()) {
+    if (doc["usage"].is<JsonObject>()) {
         JsonObject usage = doc["usage"];
-        if (usage.containsKey("total_tokens")) {
+        if (!usage["total_tokens"].isNull()) {
             _lastTotalTokens = usage["total_tokens"].as<int>(); // Store in base class member
         }
     }
 
-    if (doc.containsKey("choices") && doc["choices"].is<JsonArray>() && !doc["choices"].isNull() && doc["choices"].size() > 0) {
+    if (doc["choices"].is<JsonArray>() && doc["choices"].size() > 0) {
        JsonObject firstChoice = doc["choices"][0];
 
        // Extract finish reason if available
-       if (firstChoice.containsKey("finish_reason")) {
+       if (!firstChoice["finish_reason"].isNull()) {
            _lastFinishReason = firstChoice["finish_reason"].as<String>(); // Store in base class member
        }
 
-       if (firstChoice.containsKey("message") && firstChoice["message"].is<JsonObject>()) {
+       if (firstChoice["message"].is<JsonObject>()) {
            JsonObject message = firstChoice["message"];
            
            // Check if this is a tool call response
-           if (message.containsKey("tool_calls") && message["tool_calls"].is<JsonArray>()) {
+           if (message["tool_calls"].is<JsonArray>()) {
                // Return the entire tool_calls array as a JSON string
                String toolCallsJson;
                serializeJson(message["tool_calls"], toolCallsJson);
@@ -455,7 +455,7 @@ String AI_API_DeepSeek_Handler::parseToolCallsResponseBody(const String& respons
            }
            
            // If no tool calls, check for regular content
-           if (message.containsKey("content") && message["content"].is<const char*>()) {
+           if (message["content"].is<const char*>()) {
                return message["content"].as<String>();
            }
        }
@@ -486,38 +486,38 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
     }
     
     // Add messages array
-    JsonArray messages = doc.createNestedArray("messages");
+    JsonArray messages = doc["messages"].to<JsonArray>();
     
     // Add system message if specified
     if (systemMessage.length() > 0) {
-        JsonObject systemMsg = messages.createNestedObject();
+        JsonObject systemMsg = messages.add<JsonObject>();
         systemMsg["role"] = "system";
         systemMsg["content"] = systemMessage;
     }
     
     // Add the original user message
-    JsonObject userMsg = messages.createNestedObject();
+    JsonObject userMsg = messages.add<JsonObject>();
     userMsg["role"] = "user";
     userMsg["content"] = lastUserMessage;
     
     // Add the assistant's tool call response
-    JsonObject assistantMsg = messages.createNestedObject();
+    JsonObject assistantMsg = messages.add<JsonObject>();
     assistantMsg["role"] = "assistant";
     
     // Parse and add the tool calls
-    DynamicJsonDocument toolCallsDoc(1024);
+    JsonDocument toolCallsDoc;
     DeserializationError error = deserializeJson(toolCallsDoc, lastAssistantToolCallsJson);
     if (!error && toolCallsDoc.is<JsonArray>()) {
-        JsonArray toolCalls = assistantMsg.createNestedArray("tool_calls");
+        JsonArray toolCalls = assistantMsg["tool_calls"].to<JsonArray>();
         
         // Copy each tool call
         for (JsonVariant toolCall : toolCallsDoc.as<JsonArray>()) {
-            JsonObject newToolCall = toolCalls.createNestedObject();
+            JsonObject newToolCall = toolCalls.add<JsonObject>();
             
             // Copy all properties of the tool call
             for (JsonPair kv : toolCall.as<JsonObject>()) {
                 if (kv.value().is<JsonObject>()) {
-                    JsonObject subObj = newToolCall.createNestedObject(kv.key().c_str());
+                    JsonObject subObj = newToolCall[kv.key().c_str()].to<JsonObject>();
                     JsonObject srcSubObj = kv.value().as<JsonObject>();
                     
                     for (JsonPair subKv : srcSubObj) {
@@ -531,22 +531,22 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
     }
     
     // Parse and add tool results as tool messages
-    DynamicJsonDocument toolResultsDoc(1024);
+    JsonDocument toolResultsDoc;
     error = deserializeJson(toolResultsDoc, toolResultsJson);
     if (!error && toolResultsDoc.is<JsonArray>()) {
         for (JsonVariant result : toolResultsDoc.as<JsonArray>()) {
-            JsonObject toolMsg = messages.createNestedObject();
+            JsonObject toolMsg = messages.add<JsonObject>();
             toolMsg["role"] = "tool";
             
             // Copy tool_call_id from the result
-            if (result.containsKey("tool_call_id")) {
+            if (!result["tool_call_id"].isNull()) {
                 toolMsg["tool_call_id"] = result["tool_call_id"];
             }
             
             // Extract content from function.output
-            if (result.containsKey("function") && result["function"].is<JsonObject>()) {
+            if (result["function"].is<JsonObject>()) {
                 JsonObject function = result["function"];
-                if (function.containsKey("output")) {
+                if (!function["output"].isNull()) {
                     toolMsg["content"] = function["output"];
                 }
             }
@@ -566,17 +566,17 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
         // Check if it starts with { - might be a JSON object string
         else if (trimmedChoice.startsWith("{")) {
             // Try to parse it as a JSON object
-            DynamicJsonDocument toolChoiceDoc(512);
+            JsonDocument toolChoiceDoc;
             DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
             
             if (!error) {
                 // Successfully parsed as JSON - add as an object
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 
                 // Copy all fields from the parsed JSON
                 for (JsonPair kv : toolChoiceDoc.as<JsonObject>()) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = toolChoiceObj.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = toolChoiceObj[kv.key().c_str()].to<JsonObject>();
                         JsonObject srcSubObj = kv.value().as<JsonObject>();
                         
                         for (JsonPair subKv : srcSubObj) {
@@ -603,12 +603,12 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
     }
     
     // Add tools array (same logic as buildToolCallsRequestBody)
-    JsonArray tools = doc.createNestedArray("tools");
+    JsonArray tools = doc["tools"].to<JsonArray>();
     
     // Parse and add each tool from the toolsArray
     for (int i = 0; i < toolsArraySize; i++) {
         // Create a temporary JsonDocument to parse the tool JSON string
-        StaticJsonDocument<512> tempDoc; // Adjust size as needed
+        JsonDocument tempDoc;
         DeserializationError error = deserializeJson(tempDoc, toolsArray[i]);
         
         if (error) {
@@ -617,40 +617,40 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
         }
         
         // Check if the tool is already in OpenAI format (has 'type' and 'function' fields)
-        if (tempDoc.containsKey("type") && tempDoc.containsKey("function")) {
+        if (!tempDoc["type"].isNull() && !tempDoc["function"].isNull()) {
             // Already in OpenAI format - copy directly to tools array
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             
             // Copy type
             tool["type"] = tempDoc["type"];
             
             // Copy function
-            JsonObject function = tool.createNestedObject("function");
+            JsonObject function = tool["function"].to<JsonObject>();
             JsonObject srcFunction = tempDoc["function"];
             
             // Copy function properties
-            if (srcFunction.containsKey("name")) {
+            if (!srcFunction["name"].isNull()) {
                 function["name"] = srcFunction["name"].as<String>();
             }
             
-            if (srcFunction.containsKey("description")) {
+            if (!srcFunction["description"].isNull()) {
                 function["description"] = srcFunction["description"].as<String>();
             }
             
-            if (srcFunction.containsKey("parameters")) {
-                JsonObject params = function.createNestedObject("parameters");
+            if (!srcFunction["parameters"].isNull()) {
+                JsonObject params = function["parameters"].to<JsonObject>();
                 JsonObject srcParams = srcFunction["parameters"];
                 
                 for (JsonPair kv : srcParams) {
                     if (kv.value().is<JsonObject>()) {
-                        JsonObject subObj = params.createNestedObject(kv.key().c_str());
+                        JsonObject subObj = params[kv.key().c_str()].to<JsonObject>();
                         JsonObject srcSubObj = kv.value().as<JsonObject>();
                         
                         for (JsonPair subKv : srcSubObj) {
                             subObj[subKv.key().c_str()] = subKv.value();
                         }
                     } else if (kv.value().is<JsonArray>()) {
-                        JsonArray arr = params.createNestedArray(kv.key().c_str());
+                        JsonArray arr = params[kv.key().c_str()].to<JsonArray>();
                         JsonArray srcArr = kv.value().as<JsonArray>();
                         
                         for (const auto& item : srcArr) {
@@ -664,22 +664,22 @@ String AI_API_DeepSeek_Handler::buildToolCallsFollowUpRequestBody(const String& 
         } else {
             // Simple format - wrap in OpenAI format
             // Add this tool to the tools array with type: "function"
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             tool["type"] = "function";
             
-            JsonObject function = tool.createNestedObject("function");
+            JsonObject function = tool["function"].to<JsonObject>();
             
             // Copy all properties from the simple format to the function object
             for (JsonPair kv : tempDoc.as<JsonObject>()) {
                 if (kv.value().is<JsonObject>()) {
-                    JsonObject subObj = function.createNestedObject(kv.key().c_str());
+                    JsonObject subObj = function[kv.key().c_str()].to<JsonObject>();
                     JsonObject srcSubObj = kv.value().as<JsonObject>();
                     
                     for (JsonPair subKv : srcSubObj) {
                         subObj[subKv.key().c_str()] = subKv.value();
                     }
                 } else if (kv.value().is<JsonArray>()) {
-                    JsonArray arr = function.createNestedArray(kv.key().c_str());
+                    JsonArray arr = function[kv.key().c_str()].to<JsonArray>();
                     JsonArray srcArr = kv.value().as<JsonArray>();
                     
                     for (const auto& item : srcArr) {

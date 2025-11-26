@@ -263,7 +263,7 @@ private:
     String _lastUserMessage = "";         // Original user query
     String _lastAssistantToolCallsJson = ""; // Assistant's tool calls JSON (extracted from response)
     bool _lastMessageWasToolCalls = false; // Flag to track if follow-up is valid
-    DynamicJsonDocument* _tcConversationDoc = nullptr; // Used to track conversation for follow-up
+    JsonDocument* _tcConversationDoc = nullptr; // Used to track conversation for follow-up
 #endif
 
 #ifdef ENABLE_STREAM_CHAT
@@ -311,9 +311,9 @@ private:
     WiFiClientSecure _wifiClient;
     HTTPClient _httpClient;
 
-    // Shared JSON documents (to potentially save memory vs. creating in handlers)
-    DynamicJsonDocument _reqDoc{AI_API_REQ_JSON_DOC_SIZE};
-    DynamicJsonDocument _respDoc{AI_API_RESP_JSON_DOC_SIZE};
+    // Shared JSON documents (auto-sized in ArduinoJson v7)
+    JsonDocument _reqDoc;
+    JsonDocument _respDoc;
 
     // Private helper to clean up handler
     void _cleanupHandler();

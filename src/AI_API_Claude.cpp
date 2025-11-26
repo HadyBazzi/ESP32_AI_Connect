@@ -37,7 +37,7 @@ String AI_API_Claude_Handler::buildRequestBody(const String& modelName, const St
         // Process custom parameters if provided
         if (customParams.length() > 0) {
             // Create a temporary document to parse the custom parameters
-            DynamicJsonDocument paramsDoc(512);
+            JsonDocument paramsDoc;
             DeserializationError error = deserializeJson(paramsDoc, customParams);
             
             // Only proceed if parsing was successful
@@ -70,8 +70,8 @@ String AI_API_Claude_Handler::buildRequestBody(const String& modelName, const St
         }
         
         // Create messages array with user message
-        JsonArray messages = doc.createNestedArray("messages");
-        JsonObject userMsg = messages.createNestedObject();
+        JsonArray messages = doc["messages"].to<JsonArray>();
+        JsonObject userMsg = messages.add<JsonObject>();
         userMsg["role"] = "user";
         userMsg["content"] = userMessage;
         
@@ -99,8 +99,8 @@ String AI_API_Claude_Handler::parseResponseBody(const String& responsePayload,
         }
         
         // Check for error in the response
-        if (doc.containsKey("error")) {
-            if (doc["error"].containsKey("message")) {
+        if (!doc["error"].isNull()) {
+            if (!doc["error"]["message"].isNull()) {
                 errorMsg = "API error: " + doc["error"]["message"].as<String>();
             } else {
                 errorMsg = "Unknown API error";
@@ -109,7 +109,7 @@ String AI_API_Claude_Handler::parseResponseBody(const String& responsePayload,
         }
         
         // Extract the response content
-        if (doc.containsKey("content")) {
+        if (!doc["content"].isNull()) {
             JsonArray contentArray = doc["content"];
             if (contentArray.size() > 0) {
                 String responseText = "";
@@ -122,13 +122,13 @@ String AI_API_Claude_Handler::parseResponseBody(const String& responsePayload,
                 }
                 
                 // Extract stop reason if available
-                if (doc.containsKey("stop_reason")) {
+                if (!doc["stop_reason"].isNull()) {
                     // Return the exact stop_reason value without mapping
                     _lastFinishReason = doc["stop_reason"].as<String>();
                 }
                 
                 // Extract token count if available
-                if (doc.containsKey("usage")) {
+                if (!doc["usage"].isNull()) {
                     _lastTotalTokens = doc["usage"]["input_tokens"].as<int>() + 
                                       doc["usage"]["output_tokens"].as<int>();
                 }
@@ -175,12 +175,12 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
         }
         
         // Create tools array
-        JsonArray tools = doc.createNestedArray("tools");
+        JsonArray tools = doc["tools"].to<JsonArray>();
         
         // Add each tool to the tools array
         for (int i = 0; i < toolsArraySize; i++) {
             // Parse the tool definition from the input array
-            DynamicJsonDocument toolDoc(1024);
+            JsonDocument toolDoc;
             DeserializationError error = deserializeJson(toolDoc, toolsArray[i]);
             
             if (error) {
@@ -191,10 +191,10 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
             }
             
             // Create a new tool object in Claude's format
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             
             // Extract data from the library's tool format and convert to Claude's format
-            if (toolDoc.containsKey("type") && toolDoc.containsKey("function")) {
+            if (!toolDoc["type"].isNull() && !toolDoc["function"].isNull()) {
                 // OpenAI-style tool format: convert to Claude format
                 JsonObject function = toolDoc["function"];
                 
@@ -203,10 +203,10 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
                 tool["description"] = function["description"].as<String>();
                 
                 // Add input schema
-                JsonObject inputSchema = tool.createNestedObject("input_schema");
+                JsonObject inputSchema = tool["input_schema"].to<JsonObject>();
                 
                 // Copy parameters object to input_schema
-                if (function.containsKey("parameters")) {
+                if (!function["parameters"].isNull()) {
                     JsonObject params = function["parameters"];
                     
                     // Directly copy parameters
@@ -218,15 +218,15 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
                 // Simpler format - copy directly
                 tool["name"] = toolDoc["name"].as<String>();
                 
-                if (toolDoc.containsKey("description")) {
+                if (!toolDoc["description"].isNull()) {
                     tool["description"] = toolDoc["description"].as<String>();
                 }
                 
                 // Add input schema
-                JsonObject inputSchema = tool.createNestedObject("input_schema");
+                JsonObject inputSchema = tool["input_schema"].to<JsonObject>();
                 
                 // Copy parameters object to input_schema
-                if (toolDoc.containsKey("parameters")) {
+                if (!toolDoc["parameters"].isNull()) {
                     JsonObject params = toolDoc["parameters"];
                     
                     // Directly copy parameters
@@ -238,8 +238,8 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
         }
         
         // Create messages array with user message
-        JsonArray messages = doc.createNestedArray("messages");
-        JsonObject userMsg = messages.createNestedObject();
+        JsonArray messages = doc["messages"].to<JsonArray>();
+        JsonObject userMsg = messages.add<JsonObject>();
         userMsg["role"] = "user";
         userMsg["content"] = userMessage;
         
@@ -251,23 +251,23 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
             // Check if it's one of the allowed string values
             if (trimmedChoice == "auto" || trimmedChoice == "any" || trimmedChoice == "none") {
                 // For Claude, use object format with type field
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 toolChoiceObj["type"] = trimmedChoice;
             } 
             // Check if it starts with { - might be a JSON object string
             else if (trimmedChoice.startsWith("{")) {
                 // Try to parse it as a JSON object
-                DynamicJsonDocument toolChoiceDoc(512);
+                JsonDocument toolChoiceDoc;
                 DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
                 
                 if (!error) {
                     // Successfully parsed as JSON - add as an object
-                    JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                    JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                     
                     // Copy all fields from the parsed JSON
                     for (JsonPair kv : toolChoiceDoc.as<JsonObject>()) {
                         if (kv.value().is<JsonObject>()) {
-                            JsonObject subObj = toolChoiceObj.createNestedObject(kv.key().c_str());
+                            JsonObject subObj = toolChoiceObj[kv.key().c_str()].to<JsonObject>();
                             JsonObject srcSubObj = kv.value().as<JsonObject>();
                             
                             for (JsonPair subKv : srcSubObj) {
@@ -282,7 +282,7 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
                     #ifdef ENABLE_DEBUG_OUTPUT
                     Serial.println("Warning: tool_choice value is not valid JSON: " + trimmedChoice);
                     #endif
-                    JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                    JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                     toolChoiceObj["type"] = trimmedChoice;
                 }
             } else {
@@ -290,7 +290,7 @@ String AI_API_Claude_Handler::buildToolCallsRequestBody(const String& modelName,
                 #ifdef ENABLE_DEBUG_OUTPUT
                 Serial.println("Warning: tool_choice value is not recognized: " + trimmedChoice);
                 #endif
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 toolChoiceObj["type"] = trimmedChoice;
             }
         }
@@ -322,8 +322,8 @@ String AI_API_Claude_Handler::parseToolCallsResponseBody(const String& responseP
         }
         
         // Check for error in the response
-        if (doc.containsKey("error")) {
-            if (doc["error"].containsKey("message")) {
+        if (!doc["error"].isNull()) {
+            if (!doc["error"]["message"].isNull()) {
                 errorMsg = "API error: " + doc["error"]["message"].as<String>();
             } else {
                 errorMsg = "Unknown API error";
@@ -332,18 +332,18 @@ String AI_API_Claude_Handler::parseToolCallsResponseBody(const String& responseP
         }
         
         // Extract token count if available
-        if (doc.containsKey("usage")) {
+        if (!doc["usage"].isNull()) {
             _lastTotalTokens = doc["usage"]["input_tokens"].as<int>() + 
                               doc["usage"]["output_tokens"].as<int>();
         }
         
         // Extract the stop_reason (finish reason) without mapping
-        if (doc.containsKey("stop_reason")) {
+        if (!doc["stop_reason"].isNull()) {
             _lastFinishReason = doc["stop_reason"].as<String>();
         }
         
         // Check if the response contains content
-        if (!doc.containsKey("content") || !doc["content"].is<JsonArray>()) {
+        if (doc["content"].isNull() || !doc["content"].is<JsonArray>()) {
             errorMsg = "No content array found in response";
             return "";
         }
@@ -362,14 +362,14 @@ String AI_API_Claude_Handler::parseToolCallsResponseBody(const String& responseP
         // If there are tool_use blocks, extract them into a JSON array
         if (hasToolUse) {
             // Create a new document to hold the tool calls array
-            DynamicJsonDocument toolCallsDoc(2048);
+            JsonDocument toolCallsDoc;
             JsonArray toolCalls = toolCallsDoc.to<JsonArray>();
             
             // Extract each tool_use block
             for (JsonObject contentBlock : contentArray) {
                 if (contentBlock["type"] == "tool_use") {
                     // Create a new tool call object in OpenAI-compatible format
-                    JsonObject toolCall = toolCalls.createNestedObject();
+                    JsonObject toolCall = toolCalls.add<JsonObject>();
                     
                     // Set the ID
                     toolCall["id"] = contentBlock["id"];
@@ -378,11 +378,11 @@ String AI_API_Claude_Handler::parseToolCallsResponseBody(const String& responseP
                     toolCall["type"] = "function";
                     
                     // Create the function object
-                    JsonObject function = toolCall.createNestedObject("function");
+                    JsonObject function = toolCall["function"].to<JsonObject>();
                     function["name"] = contentBlock["name"];
                     
                     // Convert input object to arguments string
-                    if (contentBlock.containsKey("input") && contentBlock["input"].is<JsonObject>()) {
+                    if (contentBlock["input"].is<JsonObject>()) {
                         String argsStr;
                         serializeJson(contentBlock["input"], argsStr);
                         function["arguments"] = argsStr;
@@ -458,12 +458,12 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         }
         
         // Create tools array (same as in the original request)
-        JsonArray tools = doc.createNestedArray("tools");
+        JsonArray tools = doc["tools"].to<JsonArray>();
         
         // Add each tool to the tools array
         for (int i = 0; i < toolsArraySize; i++) {
             // Parse the tool definition from the input array
-            DynamicJsonDocument toolDoc(1024);
+            JsonDocument toolDoc;
             DeserializationError error = deserializeJson(toolDoc, toolsArray[i]);
             
             if (error) {
@@ -474,10 +474,10 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
             }
             
             // Create a new tool object in Claude's format
-            JsonObject tool = tools.createNestedObject();
+            JsonObject tool = tools.add<JsonObject>();
             
             // Extract data from the library's tool format and convert to Claude's format
-            if (toolDoc.containsKey("type") && toolDoc.containsKey("function")) {
+            if (!toolDoc["type"].isNull() && !toolDoc["function"].isNull()) {
                 // OpenAI-style tool format: convert to Claude format
                 JsonObject function = toolDoc["function"];
                 
@@ -486,10 +486,10 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 tool["description"] = function["description"].as<String>();
                 
                 // Add input schema
-                JsonObject inputSchema = tool.createNestedObject("input_schema");
+                JsonObject inputSchema = tool["input_schema"].to<JsonObject>();
                 
                 // Copy parameters object to input_schema
-                if (function.containsKey("parameters")) {
+                if (!function["parameters"].isNull()) {
                     JsonObject params = function["parameters"];
                     
                     // Directly copy parameters
@@ -501,15 +501,15 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 // Simpler format - copy directly
                 tool["name"] = toolDoc["name"].as<String>();
                 
-                if (toolDoc.containsKey("description")) {
+                if (!toolDoc["description"].isNull()) {
                     tool["description"] = toolDoc["description"].as<String>();
                 }
                 
                 // Add input schema
-                JsonObject inputSchema = tool.createNestedObject("input_schema");
+                JsonObject inputSchema = tool["input_schema"].to<JsonObject>();
                 
                 // Copy parameters object to input_schema
-                if (toolDoc.containsKey("parameters")) {
+                if (!toolDoc["parameters"].isNull()) {
                     JsonObject params = toolDoc["parameters"];
                     
                     // Directly copy parameters
@@ -521,15 +521,15 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         }
         
         // Create messages array
-        JsonArray messages = doc.createNestedArray("messages");
+        JsonArray messages = doc["messages"].to<JsonArray>();
         
         // Add original user message
-        JsonObject userMsg = messages.createNestedObject();
+        JsonObject userMsg = messages.add<JsonObject>();
         userMsg["role"] = "user";
         userMsg["content"] = lastUserMessage;
         
         // Parse the assistant's response to extract the tool_use content
-        DynamicJsonDocument assistantResponseDoc(2048);
+        JsonDocument assistantResponseDoc;
         DeserializationError assistantError = deserializeJson(assistantResponseDoc, lastAssistantToolCallsJson);
         
         if (assistantError) {
@@ -540,15 +540,15 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         }
         
         // Add assistant's response as a message
-        JsonObject assistantMsg = messages.createNestedObject();
+        JsonObject assistantMsg = messages.add<JsonObject>();
         assistantMsg["role"] = "assistant";
         
         // Create content array for assistant message
-        JsonArray assistantContent = assistantMsg.createNestedArray("content");
+        JsonArray assistantContent = assistantMsg["content"].to<JsonArray>();
         
         // Check if the assistant response is already in Claude's format
         // (it might be the direct response from Claude with content array)
-        if (assistantResponseDoc.containsKey("content") && assistantResponseDoc["content"].is<JsonArray>()) {
+        if (assistantResponseDoc["content"].is<JsonArray>()) {
             // Copy the entire content array from the original response
             JsonArray originalContent = assistantResponseDoc["content"];
             for (size_t i = 0; i < originalContent.size(); i++) {
@@ -559,23 +559,23 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         // If it's in our library's format (array of tool calls)
         else if (assistantResponseDoc.is<JsonArray>()) {
             // First add a placeholder text element (required by Claude)
-            JsonObject textBlock = assistantContent.createNestedObject();
+            JsonObject textBlock = assistantContent.add<JsonObject>();
             textBlock["type"] = "text";
             textBlock["text"] = "I'll help you with that.";
             
             // Then add the tool_use blocks
             JsonArray toolCalls = assistantResponseDoc.as<JsonArray>();
             for (JsonObject toolCall : toolCalls) {
-                JsonObject toolUseBlock = assistantContent.createNestedObject();
+                JsonObject toolUseBlock = assistantContent.add<JsonObject>();
                 toolUseBlock["type"] = "tool_use";
                 toolUseBlock["id"] = toolCall["id"].as<String>();
                 toolUseBlock["name"] = toolCall["function"]["name"].as<String>();
                 
                 // Handle input parameters
-                JsonObject inputObj = toolUseBlock.createNestedObject("input");
+                JsonObject inputObj = toolUseBlock["input"].to<JsonObject>();
                 // Parse arguments string to object
                 String argsStr = toolCall["function"]["arguments"].as<String>();
-                DynamicJsonDocument argsDoc(1024);
+                JsonDocument argsDoc;
                 DeserializationError argsError = deserializeJson(argsDoc, argsStr);
                 if (!argsError) {
                     // Copy arguments to input
@@ -591,14 +591,14 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         }
         
         // Add user's tool result message according to Claude's format
-        JsonObject toolResultMsg = messages.createNestedObject();
+        JsonObject toolResultMsg = messages.add<JsonObject>();
         toolResultMsg["role"] = "user";
         
         // Create content array for tool result message
-        JsonArray toolResultContent = toolResultMsg.createNestedArray("content");
+        JsonArray toolResultContent = toolResultMsg["content"].to<JsonArray>();
         
         // Parse the tool results JSON and format for Claude
-        DynamicJsonDocument resultsDoc(2048);
+        JsonDocument resultsDoc;
         DeserializationError resultsError = deserializeJson(resultsDoc, toolResultsJson);
         
         if (resultsError) {
@@ -612,11 +612,11 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
         JsonArray resultsArray = resultsDoc.as<JsonArray>();
         for (JsonObject result : resultsArray) {
             // Create tool_result content block
-            JsonObject toolResultBlock = toolResultContent.createNestedObject();
+            JsonObject toolResultBlock = toolResultContent.add<JsonObject>();
             toolResultBlock["type"] = "tool_result";
             
             // Set the tool_use_id from tool_call_id
-            if (result.containsKey("tool_call_id")) {
+            if (!result["tool_call_id"].isNull()) {
                 toolResultBlock["tool_use_id"] = result["tool_call_id"].as<String>();
             } else {
                 #ifdef ENABLE_DEBUG_OUTPUT
@@ -626,13 +626,13 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
             }
             
             // Handle function output - for Claude we need to send the content directly
-            if (result.containsKey("function") && result["function"].containsKey("output")) {
+            if (result["function"].is<JsonObject>() && !result["function"]["output"].isNull()) {
                 String output = result["function"]["output"].as<String>();
                 
                 // Check if output is a JSON string by looking for { at the beginning
                 if (output.startsWith("{")) {
                     // Try to parse as JSON to see if it's valid
-                    DynamicJsonDocument outputDoc(1024);
+                    JsonDocument outputDoc;
                     DeserializationError outputError = deserializeJson(outputDoc, output);
                     
                     if (!outputError) {
@@ -649,7 +649,7 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
             }
             
             // Add is_error flag if present
-            if (result.containsKey("is_error") && result["is_error"].as<bool>()) {
+            if (!result["is_error"].isNull() && result["is_error"].as<bool>()) {
                 toolResultBlock["is_error"] = true;
             }
         }
@@ -662,23 +662,23 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
             // Check if it's one of the allowed string values
             if (trimmedChoice == "auto" || trimmedChoice == "any" || trimmedChoice == "none") {
                 // For Claude, use object format with type field
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 toolChoiceObj["type"] = trimmedChoice;
             } 
             // Check if it starts with { - might be a JSON object string
             else if (trimmedChoice.startsWith("{")) {
                 // Try to parse it as a JSON object
-                DynamicJsonDocument toolChoiceDoc(512);
+                JsonDocument toolChoiceDoc;
                 DeserializationError error = deserializeJson(toolChoiceDoc, trimmedChoice);
                 
                 if (!error) {
                     // Successfully parsed as JSON - add as an object
-                    JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                    JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                     
                     // Copy all fields from the parsed JSON
                     for (JsonPair kv : toolChoiceDoc.as<JsonObject>()) {
                         if (kv.value().is<JsonObject>()) {
-                            JsonObject subObj = toolChoiceObj.createNestedObject(kv.key().c_str());
+                            JsonObject subObj = toolChoiceObj[kv.key().c_str()].to<JsonObject>();
                             JsonObject srcSubObj = kv.value().as<JsonObject>();
                             
                             for (JsonPair subKv : srcSubObj) {
@@ -693,7 +693,7 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                     #ifdef ENABLE_DEBUG_OUTPUT
                     Serial.println("Warning: tool_choice value is not valid JSON: " + trimmedChoice);
                     #endif
-                    JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                    JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                     toolChoiceObj["type"] = trimmedChoice;
                 }
             } else {
@@ -701,7 +701,7 @@ String AI_API_Claude_Handler::buildToolCallsFollowUpRequestBody(const String& mo
                 #ifdef ENABLE_DEBUG_OUTPUT
                 Serial.println("Warning: tool_choice value is not recognized: " + trimmedChoice);
                 #endif
-                JsonObject toolChoiceObj = doc.createNestedObject("tool_choice");
+                JsonObject toolChoiceObj = doc["tool_choice"].to<JsonObject>();
                 toolChoiceObj["type"] = trimmedChoice;
             }
         }
@@ -744,7 +744,7 @@ String AI_API_Claude_Handler::buildStreamRequestBody(const String& modelName, co
         // Process custom parameters if provided
         if (customParams.length() > 0) {
             // Create a temporary document to parse the custom parameters
-            DynamicJsonDocument paramsDoc(512);
+            JsonDocument paramsDoc;
             DeserializationError error = deserializeJson(paramsDoc, customParams);
             
             // Only proceed if parsing was successful
@@ -777,8 +777,8 @@ String AI_API_Claude_Handler::buildStreamRequestBody(const String& modelName, co
         }
         
         // Create messages array with user message
-        JsonArray messages = doc.createNestedArray("messages");
-        JsonObject userMsg = messages.createNestedObject();
+        JsonArray messages = doc["messages"].to<JsonArray>();
+        JsonObject userMsg = messages.add<JsonObject>();
         userMsg["role"] = "user";
         userMsg["content"] = userMessage;
         
@@ -820,7 +820,7 @@ String AI_API_Claude_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
 
     // Parse the JSON chunk
-    DynamicJsonDocument chunkDoc(1024); // Larger buffer for Claude responses
+    JsonDocument chunkDoc; // Larger buffer for Claude responses
     DeserializationError error = deserializeJson(chunkDoc, jsonPart);
     if (error) {
         errorMsg = "Failed to parse Claude streaming chunk JSON: " + String(error.c_str());
@@ -828,14 +828,14 @@ String AI_API_Claude_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
 
     // Check for error in the chunk
-    if (chunkDoc.containsKey("error")) {
+    if (!chunkDoc["error"].isNull()) {
         errorMsg = String("API Error in stream: ") + (chunkDoc["error"]["message"] | "Unknown error");
         return "";
     }
 
     // Extract the event type
     String eventType = "";
-    if (chunkDoc.containsKey("type")) {
+    if (!chunkDoc["type"].isNull()) {
         eventType = chunkDoc["type"].as<String>();
     }
 
@@ -850,12 +850,12 @@ String AI_API_Claude_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
     else if (eventType == "content_block_delta") {
         // This contains the actual content chunks we want
-        if (chunkDoc.containsKey("delta")) {
+        if (!chunkDoc["delta"].isNull()) {
             JsonObject delta = chunkDoc["delta"];
             
             // Check if this is a text delta
-            if (delta.containsKey("type") && delta["type"] == "text_delta") {
-                if (delta.containsKey("text")) {
+            if (delta["type"] == "text_delta") {
+                if (!delta["text"].isNull()) {
                     return delta["text"].as<String>();
                 }
             }
@@ -868,9 +868,9 @@ String AI_API_Claude_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
     else if (eventType == "message_delta") {
         // Message-level changes, check for stop_reason
-        if (chunkDoc.containsKey("delta")) {
+        if (!chunkDoc["delta"].isNull()) {
             JsonObject delta = chunkDoc["delta"];
-            if (delta.containsKey("stop_reason")) {
+            if (!delta["stop_reason"].isNull()) {
                 _lastFinishReason = delta["stop_reason"].as<String>();
             }
         }
@@ -887,7 +887,7 @@ String AI_API_Claude_Handler::processStreamChunk(const String& rawChunk, bool& i
     }
     else if (eventType == "error") {
         // Error event
-        if (chunkDoc.containsKey("error")) {
+        if (!chunkDoc["error"].isNull()) {
             JsonObject errorObj = chunkDoc["error"];
             errorMsg = String("Stream error: ") + (errorObj["message"] | "Unknown error");
         } else {

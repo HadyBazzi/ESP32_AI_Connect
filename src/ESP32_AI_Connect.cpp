@@ -163,7 +163,7 @@ bool ESP32_AI_Connect::setChatParameters(String userParameterJsonStr) {
     }
     
     // Validate JSON format
-    DynamicJsonDocument tempDoc(512); // Temporary document for validation
+    JsonDocument tempDoc; // Temporary document for validation
     DeserializationError error = deserializeJson(tempDoc, userParameterJsonStr);
     
     if (error) {
@@ -321,17 +321,17 @@ bool ESP32_AI_Connect::setTCTools(String* tcTools, int tcToolsSize) {
         bool hasName = false;
         bool hasParameters = false;
         
-        if (_reqDoc.containsKey("name")) {
+        if (!_reqDoc["name"].isNull()) {
             // Format 1 - Our simplified format
             hasName = true;
-            hasParameters = _reqDoc.containsKey("parameters");
-        } else if (_reqDoc.containsKey("type") && _reqDoc.containsKey("function")) {
+            hasParameters = !_reqDoc["parameters"].isNull();
+        } else if (!_reqDoc["type"].isNull() && !_reqDoc["function"].isNull()) {
             // Format 2 - OpenAI format with type and function
             JsonObject function = _reqDoc["function"];
-            if (function.containsKey("name")) {
+            if (!function["name"].isNull()) {
                 hasName = true;
             }
-            if (function.containsKey("parameters")) {
+            if (!function["parameters"].isNull()) {
                 hasParameters = true;
             }
         }
@@ -547,20 +547,20 @@ String ESP32_AI_Connect::tcReply(const String& toolResultsJson) {
     // Validate each tool result
     JsonArray resultsArray = _reqDoc.as<JsonArray>();
     for (JsonObject result : resultsArray) {
-        if (!result.containsKey("tool_call_id")) {
+        if (result["tool_call_id"].isNull()) {
             _lastError = "Each tool result must have a 'tool_call_id' field.";
             return "";
         }
-        if (!result.containsKey("function")) {
+        if (result["function"].isNull()) {
             _lastError = "Each tool result must have a 'function' field.";
             return "";
         }
         JsonObject function = result["function"];
-        if (!function.containsKey("name")) {
+        if (function["name"].isNull()) {
             _lastError = "Each tool result function must have a 'name' field.";
             return "";
         }
-        if (!function.containsKey("output")) {
+        if (function["output"].isNull()) {
             _lastError = "Each tool result function must have an 'output' field.";
             return "";
         }
@@ -809,7 +809,7 @@ bool ESP32_AI_Connect::setStreamChatParameters(String userParameterJsonStr) {
     }
     
     // Validate JSON format
-    DynamicJsonDocument tempDoc(512); // Temporary document for validation
+    JsonDocument tempDoc; // Temporary document for validation
     DeserializationError error = deserializeJson(tempDoc, userParameterJsonStr);
     
     if (error) {
