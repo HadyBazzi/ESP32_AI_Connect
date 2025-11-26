@@ -2,7 +2,7 @@
 
 // Constructor
 ESP32_AI_Connect::ESP32_AI_Connect(const char* platformIdentifier, const char* apiKey, const char* modelName) {
-    // Set insecure client - consider making this configurable
+    // Defaults to insecure mode, call setRootCA() to enable SSL verification.
     _wifiClient.setInsecure();
     
 #ifdef ENABLE_STREAM_CHAT
@@ -18,7 +18,7 @@ ESP32_AI_Connect::ESP32_AI_Connect(const char* platformIdentifier, const char* a
 
 // New constructor with custom endpoint
 ESP32_AI_Connect::ESP32_AI_Connect(const char* platformIdentifier, const char* apiKey, const char* modelName, const char* endpointUrl) {
-    // Set insecure client - consider making this configurable
+    // Defaults to insecure mode, call setRootCA() to enable SSL verification.
     _wifiClient.setInsecure();
     
 #ifdef ENABLE_STREAM_CHAT
@@ -123,6 +123,19 @@ void ESP32_AI_Connect::setChatSystemRole(const char* systemRole) { _systemRole =
 void ESP32_AI_Connect::setChatTemperature(float temperature) { _temperature = constrain(temperature, 0.0, 2.0); }
 // Defines the maximum number of tokens for a standard chat request to limit the length of generated responses.
 void ESP32_AI_Connect::setChatMaxTokens(int maxTokens) { _maxTokens = max(1, maxTokens); }
+
+// Set Root CA certificate for secure SSL/TLS connections
+void ESP32_AI_Connect::setRootCA(const char* rootCACert) {
+    _rootCACert = rootCACert;
+    if (_rootCACert != nullptr && strlen(_rootCACert) > 0) {
+        _wifiClient.setCACert(_rootCACert);
+    } else {
+        _wifiClient.setInsecure();
+    }
+}
+
+// Returns the currently set Root CA certificate
+const char* ESP32_AI_Connect::getRootCA() const { return _rootCACert; }
 
 // --- Configuration Getters ---
 // Returns the current System Role set for standard chat requests.

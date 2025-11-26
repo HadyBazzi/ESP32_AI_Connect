@@ -97,6 +97,12 @@ public:
     // Get the finish reason from the last response
     String getFinishReason() const;
 
+    // Sets a Root CA certificate in PEM format to enable secure SSL/TLS connections.
+    void setRootCA(const char* rootCACert);
+
+    // Returns the currently set Root CA certificate, or nullptr if using insecure mode.
+    const char* getRootCA() const;
+
 #ifdef ENABLE_TOOL_CALLS
     // --- Tool Calls Methods ---
     
@@ -232,6 +238,7 @@ private:
     float _temperature = -1.0; // Use API default
     int _maxTokens = -1;       // Use API default
     String _chatCustomParams = ""; // Store custom parameters as JSON string
+    const char* _rootCACert = nullptr; // Root CA certificate for secure connections
     
     // Raw response storage
     String _chatRawResponse = "";    // Store the raw response from chat method
