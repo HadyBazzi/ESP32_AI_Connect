@@ -21,10 +21,9 @@
  * - ArduinoJson library (version 7.0.0 or higher, available at https://arduinojson.org/)
  * 
  * Setup Instructions:
- * 1. Ensure ENABLE_STREAM_CHAT is uncommented in ESP32_AI_Connect_config.h
- * 2. Update the sketch with your WiFi credentials (ssid and password)
- * 3. Add your API key and select your preferred platform/model combination
- * 4. Upload the sketch to your ESP32 board and open the Serial Monitor (115200 baud)
+ * 1. Update the sketch with your WiFi credentials (ssid and password)
+ * 2. Add your API key and select your preferred platform/model combination
+ * 3. Upload the sketch to your ESP32 board and open the Serial Monitor (115200 baud)
  * 
  * License: MIT License (see LICENSE file in the repository for details)
  * Repository: https://github.com/AvantMaker/ESP32_AI_Connect
@@ -32,8 +31,9 @@
  * Usage Notes:
  * - Type 'q' during streaming to interrupt the response
  * - Type 'status' to check streaming metrics and state
- * - If you want to read the LLM response without debug information, disable ENABLE_DEBUG_OUTPUT 
- *   in ESP32_AI_Connect_config.h for cleaner output
+ * - To disable debug output for cleaner responses:
+ * - Arduino IDE: #define DISABLE_DEBUG_OUTPUT before #include <ESP32_AI_Connect.h>
+ * - PlatformIO: build_flags = -DDISABLE_DEBUG_OUTPUT
  * 
  * Features Demonstrated:
  * - Real-time streaming responses with enhanced metadata

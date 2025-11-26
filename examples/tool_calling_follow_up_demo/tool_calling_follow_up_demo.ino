@@ -22,10 +22,18 @@
  * - ArduinoJson library (version 7.0.0 or higher, available at https://arduinojson.org/)
  * 
  * Setup Instructions:
- * 1. In `ESP32_AI_Connect_config.h`, set `#define AI_API_REQ_JSON_DOC_SIZE 5120` to support larger tool calls.
- * 2. Create or update `my_info.h` with your WiFi credentials (`ssid`, `password`), API key (`apiKey`),
+ * 1. Create or update `my_info.h` with your WiFi credentials (`ssid`, `password`), API key (`apiKey`),
  *    platform (e.g., "openai"), model (e.g., "gpt-3.5-turbo"), and custom endpoint (`customEndpoint`).
- * 3. Upload the sketch to your ESP32 board and open the Serial Monitor (115200 baud) to view the demo output.
+ * 2. Upload the sketch to your ESP32 board and open the Serial Monitor (115200 baud) to view the demo output.
+ * 
+ * Configuration Override (optional):
+ * The default AI_API_REQ_JSON_DOC_SIZE is 5120, which is sufficient for most tool calls.
+ * To override library defaults:
+ *   - Arduino IDE: Define options BEFORE #include <ESP32_AI_Connect.h>:
+ *       #define AI_API_REQ_JSON_DOC_SIZE 8192
+ *       #include <ESP32_AI_Connect.h>
+ *   - PlatformIO: Add to platformio.ini:
+ *       build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192
  * 
  * License: MIT License (see LICENSE file in the repository for details)
  * Repository: https://github.com/AvantMaker/ESP32_AI_Connect
@@ -43,10 +51,6 @@
 #include <ArduinoJson.h> 
 #include "my_info.h"  // Contains your WiFi, API key, model, and platform details
 
-// --- Ensure Features are Enabled in the Library Config ---
-// Make sure the following are uncommented in ESP32_AI_Connect_config.h:
-// #define ENABLE_TOOL_CALLS
-// #define ENABLE_DEBUG_OUTPUT // Optional: To see request/response details
 
 // --- Create the API Client Instance ---
 ESP32_AI_Connect aiClient(platform, apiKey, model);
@@ -140,29 +144,22 @@ void setup() {
 
   /*             --- Define Tools for Tool Calling ---
              Define two tools: weather and device control
-  ----------------------------Attention------------------------------
-  The default maximum size for Tool calls is 512 bytes. If you exceed
-  this limit without adjusting the configuration, you'll encounter
-  an error. To increase the maximum Tool call size, follow these steps:
+  -----------------------------------------------------------------------
+  INFORMATION ABOUT TOOL CALLS SIZE LIMIT
+  -----------------------------------------------------------------------
+  1. ESP32_AI_Connect library has a maximum size for tool call definitions.
+  
+  2. This limit is controlled by AI_API_REQ_JSON_DOC_SIZE (default: 5120 bytes).
 
-  1. Navigate to the library folder and open the configuration file
-  named ESP32_AI_Connect_config.h.
+  3. The maximum Tool call size is automatically set to half of AI_API_REQ_JSON_DOC_SIZE,
+     giving you 2560 bytes capacity by default - sufficient for most tool calls.
 
-  2. Locate the following line:
-  #define AI_API_REQ_JSON_DOC_SIZE 1024
-
-  3. This line sets the maximum allowed size for request JSON documents.
-  By default, it is set to 1024 bytes.
-
-  4. To increase the Tool call size limit, you must increase AI_API_REQ_JSON_DOC_SIZE.
-
-  5. For this code to function properly, set AI_API_REQ_JSON_DOC_SIZE to 5120 as 
-  the following:
-                          #define AI_API_REQ_JSON_DOC_SIZE 5120
-
-  This will give you the desired Tool call capacity of 2560 bytes (half of 5120).
-  Because the maximum Tool call size is automatically set to half of
-  AI_API_REQ_JSON_DOC_SIZE. 
+  4. To increase the limit:
+     - Arduino IDE: Define BEFORE including the library:
+         #define AI_API_REQ_JSON_DOC_SIZE 8192
+         #include <ESP32_AI_Connect.h>
+     - PlatformIO: Add to platformio.ini:
+         build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192
   -----------------------------------------------------------------------
   */  
   const int numTools = 2;

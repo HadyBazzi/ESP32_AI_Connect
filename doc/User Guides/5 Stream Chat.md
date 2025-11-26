@@ -77,21 +77,34 @@ Before implementing streaming chat, ensure you have:
 - **API Access**: Valid API key for your chosen platform
 - **Knowledge**: Basic understanding of callback functions in C++
 
-## Step 1: Enable Streaming Chat in Configuration
+## Step 1: Streaming Chat Configuration
 
-First, enable streaming chat support in the library configuration. Open `ESP32_AI_Connect_config.h` and ensure these lines are uncommented:
+Streaming chat is **enabled by default** in the library. No configuration changes are required to use it.
 
+To **disable** streaming chat (saves memory if not needed), add one of the following before including the library:
+
+**Arduino IDE** - Add before `#include <ESP32_AI_Connect.h>`:
 ```cpp
-// --- Streaming Chat Support ---
-// Uncomment the following line to enable streaming chat functionality
-// This will add streamChat methods to the library
-// If you don't need streaming chat, keep this commented out to save memory
-#define ENABLE_STREAM_CHAT
+#define DISABLE_STREAM_CHAT
+#include <ESP32_AI_Connect.h>
+```
 
-// --- Debug Options ---
-// Uncomment the following line to enable detailed debug output (Request/Response)
-// via the Serial monitor.
-#define ENABLE_DEBUG_OUTPUT
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = -DDISABLE_STREAM_CHAT
+```
+
+Similarly, debug output is enabled by default. To disable it for cleaner output:
+
+**Arduino IDE**:
+```cpp
+#define DISABLE_DEBUG_OUTPUT
+#include <ESP32_AI_Connect.h>
+```
+
+**PlatformIO**:
+```ini
+build_flags = -DDISABLE_DEBUG_OUTPUT
 ```
 
 **Memory Considerations:**
@@ -564,7 +577,7 @@ The newline formatting in the callback ensures clean separation between content 
 
 ### Setup Steps:
 
-1. **Configure the library**: Ensure `ENABLE_STREAM_CHAT` is uncommented in `ESP32_AI_Connect_config.h`
+1. **Library ready**: Streaming chat is enabled by default - no configuration needed
 2. **Update credentials**: Replace WiFi credentials and API key in the example
 3. **Select platform**: Uncomment your preferred platform configuration
 4. **Upload and run**: Upload to ESP32 and open Serial Monitor at 115200 baud
@@ -619,9 +632,9 @@ Enter your next message (or 'status' for metrics):
 
 ### 1. Streaming Doesn't Start
 ```cpp
-// Check configuration
-#ifndef ENABLE_STREAM_CHAT
-#error "ENABLE_STREAM_CHAT must be defined in ESP32_AI_Connect_config.h"
+// Check that streaming wasn't disabled
+#ifdef DISABLE_STREAM_CHAT
+#error "Remove DISABLE_STREAM_CHAT to use streaming"
 #endif
 
 // Verify WiFi connection

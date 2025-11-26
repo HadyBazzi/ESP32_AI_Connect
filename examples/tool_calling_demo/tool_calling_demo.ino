@@ -40,11 +40,6 @@
 #include <ArduinoJson.h> 
 #include "my_info.h" //<- Put your WiFi Credentials and API key in this file
 
-// --- Ensure Features are Enabled in the Library Config ---
-// Make sure the following are uncommented in ESP32_AI_Connect_config.h:
-// #define ENABLE_TOOL_CALLS
-// #define ENABLE_DEBUG_OUTPUT // Optional: To see request/response details
-
 // --- Create the API Client Instance ---
 ESP32_AI_Connect aiClient(platform, apiKey, model);
 // Alternatively, you can use a custom endpoint:

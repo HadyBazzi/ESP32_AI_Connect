@@ -54,10 +54,13 @@
  *    • ArduinoJson: Arduino IDE -> Tools -> Manage Libraries -> Search "ArduinoJson" -> Install
  *    • FastLED: Arduino IDE -> Tools -> Manage Libraries -> Search "FastLED" -> Install (v3.1.0+)
  * 
- * 2. Configure ESP32_AI_Connect:
- *    • Navigate to your Arduino libraries folder
- *    • Open: ESP32_AI_Connect/src/ESP32_AI_Connect_config.h
- *    • Set: #define AI_API_REQ_JSON_DOC_SIZE 5120 (required for tool calls)
+ * 2. Configuration (optional):
+ *    • The default AI_API_REQ_JSON_DOC_SIZE is 5120 - sufficient for most tool calls
+ *    • To override:
+ *      - Arduino IDE: Define BEFORE #include <ESP32_AI_Connect.h>:
+ *          #define AI_API_REQ_JSON_DOC_SIZE 8192
+ *      - PlatformIO: Add to platformio.ini:
+ *          build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192
  * 
  * 3. Create Configuration File:
  *    • Create "my_info.h" in your sketch folder with:

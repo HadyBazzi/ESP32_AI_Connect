@@ -30,6 +30,7 @@ ESP32_AI_Connect is an Arduino library that enables ESP32 microcontrollers to in
 - **Multi-platform support**: Single interface for different AI providers
 - **Tool calls support**: Enables tool call capabilities with AI models
 - **Streaming support**: Supports streaming communication with AI model, featuring thread safety, user interruption, etc.
+- **Secure connections**: Optional SSL/TLS certificate verification for production deployments
 - **Expandable framework**: Built to easily accommodate additional model support
 - **Configurable features**: Enable/disable tool calls feature to optimize microcontroller resources
 - **OpenAI-compatible support**: Use alternative platforms by supplying custom endpoints and model names
@@ -187,6 +188,39 @@ Streaming chat enables real-time interaction with AI models by delivering respon
 - **Thread-safe Design**: Built on FreeRTOS primitives for reliable operation
 - **Memory Efficient**: Optimized for ESP32's limited resources
 
+## Secure Connections (SSL/TLS)
+
+By default, the library operates in **insecure mode** (no SSL certificate verification) for ease of use. For production applications, you can enable secure connections by providing a Root CA certificate:
+
+```cpp
+// Root CA certificate (PEM format)
+const char* root_ca = R"(
+-----BEGIN CERTIFICATE-----
+XXXXXXXXXX
+XXXXXXXXXX
+XXXXXXXXXX
+-----END CERTIFICATE-----
+)";
+
+// Enable secure mode
+aiClient.setRootCA(root_ca);
+
+// Check current security status
+if (aiClient.getRootCA() != nullptr) {
+    Serial.println("Secure mode enabled");
+}
+
+// Disable secure mode (back to insecure)
+aiClient.setRootCA(nullptr);
+```
+
+| Method | Description |
+|--------|-------------|
+| `setRootCA(cert)` | Set Root CA certificate to enable SSL verification. Pass `nullptr` to disable. |
+| `getRootCA()` | Returns current Root CA certificate, or `nullptr` if in insecure mode. |
+
+See the `secure_connection_demo` example for a complete demonstration.
+
 ## User Guide
 
 For detailed instructions on how to use this library, please refer to the comprehensive User Guide documents in the `doc/User Guide` folder. The User Guide includes:
@@ -200,26 +234,34 @@ For detailed instructions on how to use this library, please refer to the compre
 These guides provide step-by-step instructions, code examples, and best practices to help you get the most out of the ESP32_AI_Connect library.
 
 ## Configuration
-Edit ESP32_AI_Connect_config.h to customize the library to your specific needs:
 
+All platforms and features are **enabled by default**. Override settings without editing library files:
+
+**Arduino IDE** - Define options before including the library:
 ```cpp
-// Platform support - enable only what you need
-#define USE_AI_API_OPENAI
-#define USE_AI_API_GEMINI
-#define USE_AI_API_DEEPSEEK
-#define USE_AI_API_CLAUDE
+// Disable unused platforms to save code space
+#define DISABLE_AI_API_GEMINI
+#define DISABLE_AI_API_DEEPSEEK
 
-// Feature toggles - disable to save resources
-#define ENABLE_TOOL_CALLS     // Enable/disable tool calls support
-#define ENABLE_DEBUG_OUTPUT   // Enable/disable debug messages
-#define ENABLE_STREAM_CHAT   // // Enable/disable streaming support
+// Disable unused features to save memory
+#define DISABLE_TOOL_CALLS
+#define DISABLE_DEBUG_OUTPUT
+#define DISABLE_STREAM_CHAT
 
-// Memory allocation
-#define AI_API_REQ_JSON_DOC_SIZE 1024
-#define AI_API_RESP_JSON_DOC_SIZE 2048
+// Adjust buffer sizes if needed (defaults: 5120, 2048, 30000)
+#define AI_API_REQ_JSON_DOC_SIZE 8192
+#define AI_API_RESP_JSON_DOC_SIZE 4096
+#define AI_API_HTTP_TIMEOUT_MS 60000
 
-// Network settings
-#define AI_API_HTTP_TIMEOUT_MS 30000
+#include <ESP32_AI_Connect.h>
+```
+
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = 
+    -DDISABLE_AI_API_GEMINI
+    -DDISABLE_AI_API_DEEPSEEK
+    -DAI_API_REQ_JSON_DOC_SIZE=8192
 ```
 
 Disabling unused platforms or features can significantly reduce memory usage and binary size, making the library more efficient for resource-constrained ESP32 projects.

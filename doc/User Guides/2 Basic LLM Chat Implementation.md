@@ -270,14 +270,18 @@ ESP32_AI_Connect aiClient("claude", apiKey, "claude-3.7-sonnet");
 ESP32_AI_Connect aiClient("deepseek", apiKey, "deepseek-chat");
 ```
 
-Make sure the corresponding platform is enabled in the `ESP32_AI_Connect_config.h` file:
+All platforms are **enabled by default**. To disable unused platforms (saves code space), add before including the library:
 
+**Arduino IDE** - Add before `#include <ESP32_AI_Connect.h>`:
 ```cpp
-// --- Platform Selection ---
-#define USE_AI_API_OPENAI        // Enable OpenAI and OpenAI-compatible APIs
-#define USE_AI_API_GEMINI        // Enable Google Gemini API
-#define USE_AI_API_DEEPSEEK      // Enable DeepSeek API
-#define USE_AI_API_CLAUDE        // Enable Anthropic Claude API
+#define DISABLE_AI_API_GEMINI    // Disable if not using Gemini
+#define DISABLE_AI_API_DEEPSEEK  // Disable if not using DeepSeek
+#include <ESP32_AI_Connect.h>
+```
+
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = -DDISABLE_AI_API_GEMINI -DDISABLE_AI_API_DEEPSEEK
 ```
 
 ## Using a Custom Endpoint
@@ -292,6 +296,41 @@ ESP32_AI_Connect aiClient("openai-compatible", apiKey, "model-name", customEndpo
 This is useful for self-hosted models or alternative API providers that are compatible with the OpenAI API format.
 
 For more detailed information on how to use OpenAI compatible API, please refer to the custom_llm_chat.ino example code in the examples folder of the ESP32_AI_Connect Library. 
+
+## Secure Connections (SSL/TLS)
+
+By default, the library operates in **insecure mode** (no SSL certificate verification) for ease of use and compatibility. For production applications requiring enhanced security, you can enable SSL verification by providing a Root CA certificate:
+
+```cpp
+// Root CA certificate in PEM format
+const char* root_ca = R"(
+-----BEGIN CERTIFICATE-----
+XXXXXXXXXX
+XXXXXXXXXX
+XXXXXXXXXX
+-----END CERTIFICATE-----
+)";
+
+// Enable secure mode with SSL verification
+aiClient.setRootCA(root_ca);
+
+// Check if secure mode is enabled
+if (aiClient.getRootCA() != nullptr) {
+    Serial.println("Secure mode: SSL verification enabled");
+}
+
+// To disable secure mode and return to insecure mode
+aiClient.setRootCA(nullptr);
+```
+
+### SSL Methods Reference
+
+| Method | Description |
+|--------|-------------|
+| `setRootCA(const char* cert)` | Set the Root CA certificate to enable SSL verification. Pass `nullptr` to disable and return to insecure mode. |
+| `getRootCA()` | Returns a pointer to the current Root CA certificate, or `nullptr` if in insecure mode. |
+
+**Note:** You'll need to obtain the appropriate Root CA certificate for your AI provider. For a complete example, see the `secure_connection_demo` in the examples folder.
 
 ## Accessing Raw API Responses
 
@@ -319,13 +358,21 @@ If you encounter issues with your AI chat application, here are some common prob
 
 3. **API Key Problems**: Verify that your API key is valid and has the necessary permissions.
 
-4. **Memory Limitations**: The ESP32 has limited memory. If you're receiving large responses, you might need to adjust the JSON buffer sizes in `ESP32_AI_Connect_config.h`:
+4. **Memory Limitations**: The ESP32 has limited memory. If you're receiving large responses, you can adjust the JSON buffer sizes by defining them before including the library:
+   
+   **Arduino IDE**:
    ```cpp
-   #define AI_API_REQ_JSON_DOC_SIZE 1024
-   #define AI_API_RESP_JSON_DOC_SIZE 2048
+   #define AI_API_REQ_JSON_DOC_SIZE 8192
+   #define AI_API_RESP_JSON_DOC_SIZE 4096
+   #include <ESP32_AI_Connect.h>
+   ```
+   
+   **PlatformIO** (`platformio.ini`):
+   ```ini
+   build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192 -DAI_API_RESP_JSON_DOC_SIZE=4096
    ```
 
-5. **Platform Not Enabled**: Ensure that the platform you're trying to use is enabled in `ESP32_AI_Connect_config.h`.
+5. **Platform Disabled**: All platforms are enabled by default. If you previously disabled a platform with `DISABLE_AI_API_<PLATFORM>`, remove that define.
 
 ## Conclusion
 

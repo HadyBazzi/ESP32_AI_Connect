@@ -107,7 +107,7 @@ bool ESP32_AI_Connect::begin(const char* platformIdentifier, const char* apiKey,
 
     { // Default case if no match found or platform not compiled
         if (_platformHandler == nullptr) { // Only set error if no handler was created
-             _lastError = "Platform '" + String(platformIdentifier) + "' is not supported or not enabled in ESP32_AI_Connect_config.h";
+             _lastError = "Platform '" + String(platformIdentifier) + "' is not supported or was disabled with DISABLE_AI_API_<PLATFORM>";
              Serial.println("ERROR: " + _lastError);
              return false; // Indicate failure
         }

@@ -9,6 +9,8 @@ ESP32_AI_Connect is a powerful, flexible library designed to connect ESP32 micro
 - **Multi-Platform Support**: Connect to multiple AI platforms including OpenAI, Anthropic Claude, Google Gemini, and DeepSeek
 - **Simple API**: Easy-to-use interface for sending prompts and receiving responses
 - **Tool Calls Support**: Enable your ESP32 to use LLM function calling capabilities
+- **Streaming support**: Supports streaming communication with AI model, featuring thread safety, user interruption, etc.
+- **Secure Connections**: Optional SSL/TLS certificate verification for production deployments
 - **Memory Efficient**: Optimized for the limited resources of ESP32 devices
 - **Customizable**: Configure parameters like temperature, max tokens, and system prompts
 - **Extensible**: Modular design makes it easy to add support for new AI platforms

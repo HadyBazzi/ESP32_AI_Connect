@@ -15,24 +15,34 @@ Before you begin, make sure you have:
 - An API key for your chosen AI platform (Ensure the AI Model you choose supports Tool Calls functionality)
 - Basic understanding of JSON and Arduino programming
 
-## Step 1: Enable Tool Calls in Configuration
+## Step 1: Tool Calls Configuration
 
-First, ensure that tool calls support is enabled in the library configuration file. Open `ESP32_AI_Connect_config.h` and make sure the following line is uncommented:
+Tool calls support is **enabled by default** in the library. No configuration changes are required to use it.
 
+To **disable** tool calls (saves memory if not needed), add one of the following before including the library:
+
+**Arduino IDE** - Add before `#include <ESP32_AI_Connect.h>`:
 ```cpp
-// --- Tool Calls Support ---
-// Uncomment the following line to enable tool calls (tool calling) support
-// This will add tool calling methods to the library
-// If you don't need tool calls, keep this commented out to save memory
-#define ENABLE_TOOL_CALLS
+#define DISABLE_TOOL_CALLS
+#include <ESP32_AI_Connect.h>
 ```
 
-You may also want to enable debug output to see detailed request/response information:
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = -DDISABLE_TOOL_CALLS
+```
 
+Debug output is also enabled by default to help you see detailed request/response information. To disable it:
+
+**Arduino IDE**:
 ```cpp
-// --- Debug Output ---
-// Uncomment the following line to enable debug output to Serial
-#define ENABLE_DEBUG_OUTPUT
+#define DISABLE_DEBUG_OUTPUT
+#include <ESP32_AI_Connect.h>
+```
+
+**PlatformIO**:
+```ini
+build_flags = -DDISABLE_DEBUG_OUTPUT
 ```
 
 ## Step 2: Include Required Libraries
@@ -369,11 +379,18 @@ With multiple tools defined, the AI can choose which function to call based on t
 
 Tool calls can require significant memory, especially when defining complex tools. If you encounter memory issues, you may need to increase the JSON document size in the configuration file:
 
+**Arduino IDE** - Add before `#include <ESP32_AI_Connect.h>`:
 ```cpp
 // --- Advanced Configuration (Optional) ---
 // Adjust JSON buffer sizes if needed (consider ESP32 memory)
-#define AI_API_REQ_JSON_DOC_SIZE 5120  // Increased from default 1024
-#define AI_API_RESP_JSON_DOC_SIZE 4096 // Increased from default 2048
+#define AI_API_REQ_JSON_DOC_SIZE 8192  // Default is 5120
+#define AI_API_RESP_JSON_DOC_SIZE 4096 // Default is 2048
+#include <ESP32_AI_Connect.h>
+```
+
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192 -DAI_API_RESP_JSON_DOC_SIZE=4096
 ```
 
 The maximum tool call size is automatically set to half of `AI_API_REQ_JSON_DOC_SIZE`, so increasing this value will allow for larger tool definitions.

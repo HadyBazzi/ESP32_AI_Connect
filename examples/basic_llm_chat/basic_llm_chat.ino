@@ -68,7 +68,7 @@ void setup() {
   // Optional: Check if begin was successful if using the begin() method approach
   if (!aiClient.begin(platform, apiKey, model)) {
     Serial.println("Failed to initialize AI Client for platform: " + String(platform));
-    Serial.println("Check API Key, Model, and ensure platform is enabled in config.");
+    Serial.println("Check API Key, Model, and ensure platform was not disabled.");
     while(1) delay(1000); // Halt on failure
   }
 

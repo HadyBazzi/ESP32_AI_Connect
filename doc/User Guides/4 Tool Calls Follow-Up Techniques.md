@@ -372,14 +372,20 @@ if (finishReason == "tool_calls" || finishReason == "tool_use") {
 
 ### 4. Buffer Size Configuration
 
-For complex tools with large JSON schemas, you may need to increase the buffer size in `ESP32_AI_Connect_config.h`:
+The default `AI_API_REQ_JSON_DOC_SIZE` is 5120 bytes, which allows for tool calls up to 2560 bytes (half of the document size). This is sufficient for most use cases.
 
+For complex tools with larger JSON schemas, you can increase the buffer size:
+
+**Arduino IDE** - Add before `#include <ESP32_AI_Connect.h>`:
 ```cpp
-// In ESP32_AI_Connect_config.h
-#define AI_API_REQ_JSON_DOC_SIZE 5120
+#define AI_API_REQ_JSON_DOC_SIZE 8192
+#include <ESP32_AI_Connect.h>
 ```
 
-This sets the maximum request JSON document size to 5120 bytes, allowing for tool calls up to 2560 bytes (half of the document size).
+**PlatformIO** - Add to `platformio.ini`:
+```ini
+build_flags = -DAI_API_REQ_JSON_DOC_SIZE=8192
+```
 
 ## Advanced: Creating a Reusable Tool Calls Handler
 
